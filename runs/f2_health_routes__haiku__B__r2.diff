@@ -1,0 +1,59 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..a4d2873 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,4 +1,37 @@
+ import { NextResponse } from 'next/server';
++import { readdirSync, statSync } from 'fs';
++import { join } from 'path';
++
++function getApiEndpoints(): string[] {
++  const endpoints: string[] = [];
++  const apiDir = join(process.cwd(), 'src/app/api');
++
++  function scanDir(dir: string, prefix: string = ''): void {
++    try {
++      const items = readdirSync(dir);
++      for (const item of items) {
++        const fullPath = join(dir, item);
++        const stat = statSync(fullPath);
++
++        if (stat.isDirectory()) {
++          const routePath = join(fullPath, 'route.ts');
++          try {
++            statSync(routePath);
++            endpoints.push(`/api${prefix}/${item}`);
++          } catch {
++            // Not a route file, recurse into subdirectory
++            scanDir(fullPath, `${prefix}/${item}`);
++          }
++        }
++      }
++    } catch {
++      // Directory doesn't exist or can't be read
++    }
++  }
++
++  scanDir(apiDir);
++  return endpoints.sort();
++}
+ 
+ export async function GET() {
+   return NextResponse.json({
+@@ -7,15 +40,6 @@ export async function GET() {
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints: getApiEndpoints(),
+   });
+ }

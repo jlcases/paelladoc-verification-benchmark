@@ -1,0 +1,46 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..5578547 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,5 +1,5 @@
+ 
+-import { NextResponse } from 'next/server';
++import { type NextRequest, NextResponse } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -39,10 +39,23 @@ export async function GET() {
+         alert: props.alert,
+       };
+     });
++    const minMagnitudeParam = request.nextUrl.searchParams.get('minMagnitude');
++    const parsedMinMagnitude = minMagnitudeParam === null ? null : Number(minMagnitudeParam);
++    const hasValidMinMagnitude =
++      minMagnitudeParam !== null &&
++      minMagnitudeParam.trim() !== '' &&
++      parsedMinMagnitude !== null &&
++      Number.isFinite(parsedMinMagnitude) &&
++      parsedMinMagnitude >= 0;
++    const filteredEarthquakes = hasValidMinMagnitude
++      ? earthquakes.filter((earthquake: { magnitude: unknown }) =>
++          typeof earthquake.magnitude === 'number' && earthquake.magnitude >= parsedMinMagnitude
++        )
++      : earthquakes;
+ 
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: filteredEarthquakes,
++      total: filteredEarthquakes.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

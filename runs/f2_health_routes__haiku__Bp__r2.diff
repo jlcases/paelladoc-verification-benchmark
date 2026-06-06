@@ -1,0 +1,62 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..e10e88c 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,47 @@
+ import { NextResponse } from 'next/server';
++import { readdirSync, statSync } from 'fs';
++import { join } from 'path';
++
++function scanApiRoutes(dir: string, basePath: string = '/api'): string[] {
++  const endpoints: string[] = [];
++
++  try {
++    const entries = readdirSync(dir, { withFileTypes: true });
++
++    for (const entry of entries) {
++      const fullPath = join(dir, entry.name);
++
++      if (entry.isDirectory()) {
++        const routePath = join(fullPath, 'route.ts');
++        try {
++          statSync(routePath);
++          endpoints.push(`${basePath}/${entry.name}`);
++        } catch {
++          // No route.ts in this directory, recurse into subdirectories
++        }
++
++        // Recursively scan subdirectories
++        const subEndpoints = scanApiRoutes(fullPath, `${basePath}/${entry.name}`);
++        endpoints.push(...subEndpoints);
++      }
++    }
++  } catch {
++    // Gracefully handle scan failures
++  }
++
++  return endpoints.sort();
++}
+ 
+ export async function GET() {
++  const apiDir = join(process.cwd(), 'src/app/api');
++  const endpoints = scanApiRoutes(apiDir);
++
+   return NextResponse.json({
+     status: 'operational',
+     platform: 'OSIRIS',
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints,
+   });
+ }

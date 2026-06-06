@@ -1,0 +1,47 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..0702a14 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,8 +7,23 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++function parseMinMagnitude(request: Request): number | null {
++  const rawMinMagnitude = new URL(request.url).searchParams.get('minMagnitude');
++  if (rawMinMagnitude === null || rawMinMagnitude.trim() === '') {
++    return null;
++  }
++
++  const minMagnitude = Number(rawMinMagnitude);
++  if (!Number.isFinite(minMagnitude) || minMagnitude < 0) {
++    return null;
++  }
++
++  return minMagnitude;
++}
++
++export async function GET(request: Request) {
+   try {
++    const minMagnitude = parseMinMagnitude(request);
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -40,9 +55,15 @@ export async function GET() {
+       };
+     });
+ 
++    const filteredEarthquakes = minMagnitude === null
++      ? earthquakes
++      : earthquakes.filter((earthquake: any) => (
++        typeof earthquake.magnitude === 'number' && earthquake.magnitude >= minMagnitude
++      ));
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: filteredEarthquakes,
++      total: filteredEarthquakes.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

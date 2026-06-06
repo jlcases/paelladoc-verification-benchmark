@@ -1,0 +1,45 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..b7cec86 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,4 +1,23 @@
+ import { NextResponse } from 'next/server';
++import { readdirSync } from 'fs';
++import { join } from 'path';
++
++function scanApiRoutes(): string[] {
++  try {
++    const apiDir = join(process.cwd(), 'src', 'app', 'api');
++    const entries = readdirSync(apiDir, { recursive: true, encoding: 'utf-8' }) as string[];
++    return entries
++      .filter((entry) => entry === 'route.ts' || entry === 'route.js' || entry.endsWith('/route.ts') || entry.endsWith('/route.js'))
++      .map((entry) => {
++        const withoutFile = entry.replace(/[/\\]?route\.[jt]s$/, '');
++        const segment = withoutFile ? `/${withoutFile}` : '';
++        return `/api${segment}`;
++      })
++      .sort();
++  } catch {
++    return [];
++  }
++}
+ 
+ export async function GET() {
+   return NextResponse.json({
+@@ -7,15 +26,6 @@ export async function GET() {
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints: scanApiRoutes(),
+   });
+ }

@@ -1,0 +1,58 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..b5b46e1 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,43 @@
+ import { NextResponse } from 'next/server';
++import { readdirSync, statSync } from 'fs';
++import { join } from 'path';
++
++function collectRoutes(dir: string, prefix: string): string[] {
++  const routes: string[] = [];
++  let entries: string[];
++  try {
++    entries = readdirSync(dir);
++  } catch {
++    return routes;
++  }
++  for (const entry of entries) {
++    const fullPath = join(dir, entry);
++    try {
++      const stat = statSync(fullPath);
++      if (stat.isDirectory()) {
++        routes.push(...collectRoutes(fullPath, `${prefix}/${entry}`));
++      } else if (entry === 'route.ts' || entry === 'route.js') {
++        routes.push(prefix);
++      }
++    } catch {
++      // skip unreadable entries
++    }
++  }
++  return routes;
++}
+ 
+ export async function GET() {
++  const apiDir = join(process.cwd(), 'src', 'app', 'api');
++  const endpoints = collectRoutes(apiDir, '/api')
++    .filter((r) => r !== '/api/health')
++    .sort();
++
+   return NextResponse.json({
+     status: 'operational',
+     platform: 'OSIRIS',
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints,
+   });
+ }

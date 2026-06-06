@@ -1,0 +1,61 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..3c1a7d2 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,46 @@
+ import { NextResponse } from 'next/server';
++import { promises as fs } from 'fs';
++import { join } from 'path';
++
++async function scanApiRoutes(): Promise<string[]> {
++  try {
++    const apiDir = join(process.cwd(), 'src/app/api');
++    const endpoints: string[] = [];
++
++    async function scanDir(dir: string, prefix: string = ''): Promise<void> {
++      const entries = await fs.readdir(dir, { withFileTypes: true });
++
++      for (const entry of entries) {
++        if (entry.isDirectory()) {
++          const newPrefix = prefix ? `${prefix}/${entry.name}` : `/${entry.name}`;
++          const fullPath = join(dir, entry.name);
++          await scanDir(fullPath, newPrefix);
++        } else if (entry.name === 'route.ts' || entry.name === 'route.js') {
++          const endpoint = prefix ? `${prefix}` : '/';
++          endpoints.push(endpoint);
++        }
++      }
++    }
++
++    await scanDir(apiDir);
++    return endpoints
++      .map(ep => `/api${ep === '/' ? '' : ep}`)
++      .sort();
++  } catch (error) {
++    console.error('Failed to scan API routes:', error);
++    return [];
++  }
++}
+ 
+ export async function GET() {
++  const endpoints = await scanApiRoutes();
++
+   return NextResponse.json({
+     status: 'operational',
+     platform: 'OSIRIS',
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints,
+   });
+ }

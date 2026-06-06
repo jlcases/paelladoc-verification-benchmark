@@ -1,0 +1,2042 @@
+[
+  {
+    "feature": "f1_quake_filter",
+    "engine": "claude",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      false,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "claude",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      false,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "claude",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "codex",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "codex",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "codex",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      false,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f1_quake_filter",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "claude",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "claude",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "claude",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "codex",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "codex",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "codex",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      false,
+      true,
+      false
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f2_health_routes",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "claude",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      false,
+      true,
+      false,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "claude",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "claude",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "codex",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "codex",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "codex",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f3_spaceweather_cache",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "claude",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "claude",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "claude",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "codex",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "codex",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "codex",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f4_news_filter",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "claude",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "claude",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "claude",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "claude",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "codex",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "codex",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "codex",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "codex",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      false,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "haiku",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      false,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": true,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "haiku",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "kimi",
+    "arm": "B",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      false,
+      true,
+      true,
+      true
+    ],
+    "all_pass": false,
+    "genuine_bug": false,
+    "contract_fail": 1
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 1,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 2,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  },
+  {
+    "feature": "f5_quake_pagination",
+    "engine": "kimi",
+    "arm": "Bp",
+    "run": 3,
+    "status": "ok",
+    "pass_flags": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "all_pass": true,
+    "genuine_bug": false,
+    "contract_fail": 0
+  }
+]

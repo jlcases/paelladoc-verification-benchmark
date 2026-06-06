@@ -1,0 +1,11 @@
+{
+  "feature": "f1_quake_filter",
+  "engine": "claude",
+  "arm": "Bp",
+  "run": 2,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 0.16102789999999997
+}

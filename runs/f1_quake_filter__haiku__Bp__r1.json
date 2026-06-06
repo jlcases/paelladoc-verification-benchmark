@@ -1,0 +1,11 @@
+{
+  "feature": "f1_quake_filter",
+  "engine": "haiku",
+  "arm": "Bp",
+  "run": 1,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 0.08724059999999999
+}

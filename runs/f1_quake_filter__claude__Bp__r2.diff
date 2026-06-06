@@ -1,0 +1,34 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..1c6564b 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,7 +7,12 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: Request) {
++  const { searchParams } = new URL(request.url);
++  const minMagParam = searchParams.get('minMagnitude');
++  const minMagnitude = minMagParam !== null ? parseFloat(minMagParam) : NaN;
++  const applyFilter = minMagParam !== null && isFinite(minMagnitude) && minMagnitude >= 0;
++
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,9 +45,13 @@ export async function GET() {
+       };
+     });
+ 
++    const filtered = applyFilter
++      ? earthquakes.filter((eq: { magnitude: number }) => eq.magnitude >= minMagnitude)
++      : earthquakes;
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: filtered,
++      total: filtered.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

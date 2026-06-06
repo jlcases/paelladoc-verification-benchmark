@@ -1,0 +1,37 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..b505139 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,5 +1,5 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextRequest, NextResponse } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+@@ -7,7 +7,10 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
++  const { searchParams } = request.nextUrl;
++  const limitParam = searchParams.get('limit');
++  const limit = limitParam ? parseInt(limitParam, 10) : null;
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,8 +43,12 @@ export async function GET() {
+       };
+     });
+ 
++    const limited = limit !== null && !isNaN(limit) && limit > 0
++      ? earthquakes.slice(0, limit)
++      : earthquakes;
++
+     return NextResponse.json({
+-      earthquakes,
++      earthquakes: limited,
+       total: earthquakes.length,
+       timestamp: new Date().toISOString(),
+     }, {

@@ -1,0 +1,84 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..358881b 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,58 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'node:fs/promises';
++import path from 'node:path';
++
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++const API_DIR = path.join(process.cwd(), 'src', 'app', 'api');
++const ROUTE_FILE_PATTERN = /^route\.(?:js|jsx|ts|tsx|mjs|mts|cjs|cts)$/;
++
++function routePathFromSegments(segments: string[]) {
++  return `/api${segments.length ? `/${segments.join('/')}` : ''}`;
++}
++
++function isRouteSegment(name: string) {
++  return !name.startsWith('_') && !name.startsWith('@');
++}
++
++async function collectApiRoutes(dir: string, segments: string[] = []): Promise<string[]> {
++  const entries = await readdir(dir, { withFileTypes: true });
++  const routes: string[] = [];
++
++  if (entries.some((entry) => entry.isFile() && ROUTE_FILE_PATTERN.test(entry.name))) {
++    routes.push(routePathFromSegments(segments));
++  }
++
++  const childRoutes = await Promise.all(
++    entries
++      .filter((entry) => entry.isDirectory() && isRouteSegment(entry.name))
++      .map((entry) => {
++        const childSegments = entry.name.startsWith('(') && entry.name.endsWith(')')
++          ? segments
++          : [...segments, entry.name];
++
++        return collectApiRoutes(path.join(dir, entry.name), childSegments);
++      })
++  );
++
++  return routes.concat(...childRoutes);
++}
++
++async function getApiEndpoints() {
++  const routes = await collectApiRoutes(API_DIR);
++  return Array.from(new Set(routes)).sort();
++}
++
++export async function GET() {
++  const endpoints = await getApiEndpoints();
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

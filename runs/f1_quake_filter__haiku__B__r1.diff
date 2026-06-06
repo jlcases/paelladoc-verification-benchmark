@@ -1,0 +1,260 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..8a90688 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,8 +7,12 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: Request) {
+   try {
++    const { searchParams } = new URL(request.url);
++    const minMagnitude = searchParams.get('minMagnitude');
++    const parsedMinMagnitude = minMagnitude ? parseFloat(minMagnitude) : 2.5;
++
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -21,29 +25,32 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
+-      const coords = f.geometry?.coordinates || [0, 0, 0];
+-      const props = f.properties || {};
+-      return {
+-        id: f.id,
+-        lat: coords[1],
+-        lng: coords[0],
+-        depth: coords[2],
+-        magnitude: props.mag,
+-        place: props.place,
+-        time: props.time,
+-        url: props.url,
+-        tsunami: props.tsunami,
+-        type: props.type,
+-        felt: props.felt,
+-        alert: props.alert,
+-      };
+-    });
++    const earthquakes = features
++      .map((f: any) => {
++        const coords = f.geometry?.coordinates || [0, 0, 0];
++        const props = f.properties || {};
++        return {
++          id: f.id,
++          lat: coords[1],
++          lng: coords[0],
++          depth: coords[2],
++          magnitude: props.mag,
++          place: props.place,
++          time: props.time,
++          url: props.url,
++          tsunami: props.tsunami,
++          type: props.type,
++          felt: props.felt,
++          alert: props.alert,
++        };
++      })
++      .filter((eq: any) => (eq.magnitude ?? 0) >= parsedMinMagnitude);
+ 
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,
+       timestamp: new Date().toISOString(),
++      minMagnitude: parsedMinMagnitude,
+     }, {
+       headers: {
+         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e52e7a5..c46a4d4 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -108,6 +108,7 @@ export default function Dashboard() {
+   const [mapStyle, setMapStyle] = useState<'dark'|'satellite'>('dark');
+   const [sweepData, setSweepData] = useState<any>(null);
+   const [scanTargets, setScanTargets] = useState<any[]>([]);
++  const [earthquakeMagnitudeFilter, setEarthquakeMagnitudeFilter] = useState(2.5);
+ 
+   const isMobile = useIsMobile();
+   const startTime = useRef(Date.now());
+@@ -286,7 +287,7 @@ export default function Dashboard() {
+   // ── PROGRESSIVE DATA LOADING (request-optimized) ──
+   useEffect(() => {
+     // Priority 1: Core feeds (always needed for panels)
+-    fetchEndpoint('/api/earthquakes');
++    fetchEndpoint(`/api/earthquakes?minMagnitude=${earthquakeMagnitudeFilter}`);
+     fetchEndpoint('/api/news');
+     const marketTimer = setTimeout(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 800);
+ 
+@@ -300,7 +301,7 @@ export default function Dashboard() {
+ 
+     // Polling — OPTIMIZED intervals to minimize edge requests
+     const intervals = [
+-      setInterval(() => fetchEndpoint('/api/earthquakes'), 900000),  // 15 min (was 5)
++      setInterval(() => fetchEndpoint(`/api/earthquakes?minMagnitude=${earthquakeMagnitudeFilter}`), 900000),  // 15 min (was 5)
+       setInterval(() => fetchEndpoint('/api/news'), 1800000),        // 30 min (was 10)
+       setInterval(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 900000), // 15 min (was 5)
+     ];
+@@ -309,7 +310,7 @@ export default function Dashboard() {
+       clearTimeout(spaceTimer);
+       intervals.forEach(clearInterval);
+     };
+-  }, [fetchEndpoint]);
++  }, [fetchEndpoint, earthquakeMagnitudeFilter]);
+ 
+   // ── LAYER-AWARE DATA LOADING — only fetch when layer is toggled ON ──
+   const layerFetchedRef = useRef<Set<string>>(new Set());
+@@ -730,7 +731,7 @@ export default function Dashboard() {
+       <div className="desktop-panel absolute left-5 top-20 bottom-24 w-72 flex flex-col gap-3 z-[200] pointer-events-none overflow-y-auto styled-scrollbar pr-1">
+         {showLayers && (
+           <>
+-            <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} />
++            <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} earthquakeMagnitudeFilter={earthquakeMagnitudeFilter} setEarthquakeMagnitudeFilter={setEarthquakeMagnitudeFilter} />
+             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }} className="glass-panel px-3 py-2.5 pointer-events-auto">
+               <div className="grid grid-cols-5 gap-2 text-center">
+                 <div><div className="hud-label">AIRCRAFT</div><div className="hud-value text-[10px] animate-data-pulse">{globalStats ? globalStats.flights.toLocaleString() : '0'}</div></div>
+@@ -903,7 +904,7 @@ export default function Dashboard() {
+                           <div><div className="hud-label" style={{fontSize:'6px'}}>NUC</div><div className="hud-value text-[9px]" style={{color:'var(--accent-nuclear)'}}>{(data.infrastructure?.length||0)}</div></div>
+                         </div>
+                       </div>
+-                      <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} />
++                      <LayerPanel data={data} activeLayers={activeLayers} setActiveLayers={setActiveLayers} earthquakeMagnitudeFilter={earthquakeMagnitudeFilter} setEarthquakeMagnitudeFilter={setEarthquakeMagnitudeFilter} />
+                       <div className="mt-2">
+                         <ViewPresets onNavigate={(lat, lng, zoom) => { setFlyToLocation({ lat, lng, ts: Date.now() }); setMapView(v => ({ ...v, zoom })); setMobilePanel(null); }} />
+                       </div>
+diff --git a/src/components/LayerPanel.tsx b/src/components/LayerPanel.tsx
+index 39d6cfd..e9db135 100644
+--- a/src/components/LayerPanel.tsx
++++ b/src/components/LayerPanel.tsx
+@@ -13,6 +13,8 @@ interface LayerPanelProps {
+   data: any;
+   activeLayers: any;
+   setActiveLayers: React.Dispatch<React.SetStateAction<any>>;
++  earthquakeMagnitudeFilter?: number;
++  setEarthquakeMagnitudeFilter?: (value: number) => void;
+ }
+ 
+ const LAYER_GROUPS = [
+@@ -78,7 +80,7 @@ const LAYER_GROUPS = [
+ // Flat list for backward compat
+ const ALL_LAYERS = LAYER_GROUPS.flatMap(g => g.layers);
+ 
+-function LayerPanel({ data, activeLayers, setActiveLayers }: LayerPanelProps) {
++function LayerPanel({ data, activeLayers, setActiveLayers, earthquakeMagnitudeFilter = 2.5, setEarthquakeMagnitudeFilter }: LayerPanelProps) {
+   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+     const initial: Record<string, boolean> = {};
+     LAYER_GROUPS.forEach(g => { initial[g.label] = true; });
+@@ -190,43 +192,64 @@ function LayerPanel({ data, activeLayers, setActiveLayers }: LayerPanelProps) {
+                         const isActive = activeLayers[layer.key];
+                         const count = getCount(layer.dataKey);
+                         return (
+-                          <button
+-                            key={layer.key}
+-                            onClick={() => toggle(layer.key)}
+-                            className={`w-full flex items-center gap-2.5 px-2 py-[5px] rounded-md transition-all duration-200 group ${
+-                              isActive
+-                                ? 'bg-white/[0.04] border border-white/[0.06]'
+-                                : 'border border-transparent hover:bg-white/[0.02]'
+-                            }`}
+-                          >
+-                            {/* Color dot indicator */}
+-                            <div
+-                              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-300 ${isActive ? 'scale-100' : 'scale-50 opacity-30'}`}
+-                              style={{
+-                                backgroundColor: layer.color,
+-                                boxShadow: isActive ? `0 0 6px ${layer.color}60` : 'none',
+-                              }}
+-                            />
+-                            <Icon
+-                              className="w-3.5 h-3.5 flex-shrink-0 transition-colors duration-200"
+-                              style={{ color: isActive ? layer.color : 'var(--text-muted)' }}
+-                            />
+-                            <span className={`text-[11px] font-mono tracking-wide flex-1 text-left transition-colors duration-200 ${
+-                              isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]'
+-                            }`}>
+-                              {layer.label}
+-                            </span>
+-                            {count !== null && (
+-                              <span
+-                                className="text-[9px] font-mono tabular-nums font-bold transition-colors duration-200"
++                          <div key={layer.key}>
++                            <button
++                              onClick={() => toggle(layer.key)}
++                              className={`w-full flex items-center gap-2.5 px-2 py-[5px] rounded-md transition-all duration-200 group ${
++                                isActive
++                                  ? 'bg-white/[0.04] border border-white/[0.06]'
++                                  : 'border border-transparent hover:bg-white/[0.02]'
++                              }`}
++                            >
++                              {/* Color dot indicator */}
++                              <div
++                                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-300 ${isActive ? 'scale-100' : 'scale-50 opacity-30'}`}
++                                style={{
++                                  backgroundColor: layer.color,
++                                  boxShadow: isActive ? `0 0 6px ${layer.color}60` : 'none',
++                                }}
++                              />
++                              <Icon
++                                className="w-3.5 h-3.5 flex-shrink-0 transition-colors duration-200"
+                                 style={{ color: isActive ? layer.color : 'var(--text-muted)' }}
+-                              >
+-                                {count.toLocaleString()}
++                              />
++                              <span className={`text-[11px] font-mono tracking-wide flex-1 text-left transition-colors duration-200 ${
++                                isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]'
++                              }`}>
++                                {layer.label}
+                               </span>
++                              {count !== null && (
++                                <span
++                                  className="text-[9px] font-mono tabular-nums font-bold transition-colors duration-200"
++                                  style={{ color: isActive ? layer.color : 'var(--text-muted)' }}
++                                >
++                                  {count.toLocaleString()}
++                                </span>
++                              )}
++                              {/* Toggle switch */}
++                              <div className={`layer-toggle ${isActive ? 'active' : ''}`} />
++                            </button>
++                            {layer.key === 'earthquakes' && (
++                              <div className="mt-2 px-2 py-2 bg-white/[0.02] rounded-md border border-white/[0.04]">
++                                <div className="flex items-center justify-between mb-2">
++                                  <label className="text-[9px] font-mono text-[var(--text-secondary)] tracking-wide">MIN MAGNITUDE</label>
++                                  <span className="text-[10px] font-mono font-bold text-[#FF9500]">{earthquakeMagnitudeFilter.toFixed(1)}</span>
++                                </div>
++                                <input
++                                  type="range"
++                                  min="2.5"
++                                  max="8"
++                                  step="0.1"
++                                  value={earthquakeMagnitudeFilter}
++                                  onChange={(e) => setEarthquakeMagnitudeFilter?.(parseFloat(e.target.value))}
++                                  className="w-full h-1.5 bg-white/[0.1] rounded-lg appearance-none cursor-pointer accent-[#FF9500]"
++                                  style={{
++                                    background: `linear-gradient(to right, #FF9500 0%, #FF9500 ${((earthquakeMagnitudeFilter - 2.5) / 5.5) * 100}%, rgba(255,255,255,0.1) ${((earthquakeMagnitudeFilter - 2.5) / 5.5) * 100}%, rgba(255,255,255,0.1) 100%)`
++                                  }}
++                                />
++                              </div>
+                             )}
+-                            {/* Toggle switch */}
+-                            <div className={`layer-toggle ${isActive ? 'active' : ''}`} />
+-                          </button>
++                          </div>
+                         );
+                       })}
+                     </div>
+diff --git a/src/components/OsirisMap.tsx b/src/components/OsirisMap.tsx
+index f3ac05e..0d36049 100644
+--- a/src/components/OsirisMap.tsx
++++ b/src/components/OsirisMap.tsx
+@@ -822,7 +822,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
+ 
+   useEffect(() => {
+     if (!mapReady) return;
+-    setGeo('earthquakes', activeLayers.earthquakes && data.earthquakes ? data.earthquakes.map((eq: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [eq.lng, eq.lat] }, properties: { magnitude: eq.magnitude, place: eq.place } })) : []);
++    setGeo('earthquakes', activeLayers.earthquakes && data.earthquakes ? data.earthquakes.map((eq: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [eq.lng, eq.lat] }, properties: { magnitude: eq.magnitude, place: eq.place, depth: eq.depth, id: eq.id, source: eq.source || 'USGS' } })) : []);
+   }, [mapReady, data.earthquakes, activeLayers.earthquakes, setGeo]);
+ 
+   useEffect(() => {

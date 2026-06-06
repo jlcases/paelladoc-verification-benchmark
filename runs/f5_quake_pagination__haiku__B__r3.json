@@ -1,0 +1,11 @@
+{
+  "feature": "f5_quake_pagination",
+  "engine": "haiku",
+  "arm": "B",
+  "run": 3,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 0.07042495
+}

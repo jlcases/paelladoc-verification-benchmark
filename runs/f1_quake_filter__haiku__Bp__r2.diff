@@ -1,0 +1,44 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..93687fe 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,13 +1,15 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ * Query params:
++ *   - minMagnitude: optional numeric filter (default: no filter)
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,9 +42,19 @@ export async function GET() {
+       };
+     });
+ 
++    let filtered = earthquakes;
++    const minMagnitudeParam = request.nextUrl.searchParams.get('minMagnitude');
++
++    if (minMagnitudeParam !== null) {
++      const minMagnitude = parseFloat(minMagnitudeParam);
++      if (!isNaN(minMagnitude) && minMagnitude >= 0) {
++        filtered = earthquakes.filter((eq: any) => eq.magnitude >= minMagnitude);
++      }
++    }
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: filtered,
++      total: filtered.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

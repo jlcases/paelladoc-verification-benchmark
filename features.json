@@ -1,0 +1,107 @@
+[
+  {
+    "id": "f1_quake_filter",
+    "request": "Add a magnitude filter to the earthquakes API so the map can hide small quakes.",
+    "us": "As a map operator monitoring seismic activity, I want to request earthquakes above a minimum magnitude from /api/earthquakes, so I can focus the view on significant events and cut noise.",
+    "context_query": "earthquake seismic magnitude data API route USGS",
+    "target_hint": "src/app/api/earthquakes/route.ts",
+    "acs": [
+      "GET /api/earthquakes?minMagnitude=5 returns only earthquakes whose magnitude is >= 5.",
+      "When minMagnitude is absent, the response is unchanged: every earthquake is returned.",
+      "When minMagnitude is invalid (non-numeric, empty, or negative) the route must NOT return 500; it returns the full unfiltered set.",
+      "The response 'total' field equals the number of earthquakes actually returned after filtering.",
+      "The existing Cache-Control response header is preserved unchanged."
+    ],
+    "ac_types": [
+      "contract",
+      "genuine",
+      "genuine",
+      "genuine",
+      "genuine"
+    ]
+  },
+  {
+    "id": "f2_health_routes",
+    "request": "The /api/health endpoint list is stale and hardcoded. Make it reflect the real API routes.",
+    "us": "As an operator, I want /api/health to report the actual set of API routes the app exposes, so the status payload never drifts from the real surface as routes are added or removed.",
+    "context_query": "health status endpoint api routes list operational",
+    "target_hint": "src/app/api/health/route.ts",
+    "acs": [
+      "The 'endpoints' array is derived at runtime from the filesystem (scanning the src/app/api route tree), not a hardcoded literal list.",
+      "The returned list includes routes currently missing from the hardcoded version, e.g. /api/cctv and /api/osint/phone.",
+      "Nested routes appear with their full path (e.g. /api/osint/phone, not just /api/osint).",
+      "The route returns HTTP 200 and never throws, even if the directory scan fails (it falls back gracefully).",
+      "Each listed endpoint is a string path beginning with /api/."
+    ],
+    "ac_types": [
+      "genuine",
+      "genuine",
+      "genuine",
+      "genuine",
+      "genuine"
+    ]
+  },
+  {
+    "id": "f3_spaceweather_cache",
+    "request": "The space-weather route hits NOAA on every request. Add a short server-side cache to cut upstream calls.",
+    "us": "As a backend owner, I want /api/space-weather to serve a recently-cached payload instead of refetching NOAA on every request, so we reduce upstream load and latency without serving stale data for long.",
+    "context_query": "space weather NOAA solar Kp index fetch route caching",
+    "target_hint": "src/app/api/space-weather/route.ts",
+    "acs": [
+      "An in-memory cache holds the computed payload with a bounded TTL (on the order of 30-120 seconds).",
+      "Within the TTL window, a second request returns the cached payload WITHOUT issuing new NOAA fetch calls.",
+      "After the TTL expires, the route refetches from NOAA and refreshes the cache.",
+      "A Cache-Control response header is added consistent with the TTL.",
+      "On upstream failure the route still responds without throwing (existing resilience preserved)."
+    ],
+    "ac_types": [
+      "genuine",
+      "genuine",
+      "genuine",
+      "genuine",
+      "genuine"
+    ]
+  },
+  {
+    "id": "f4_news_filter",
+    "request": "Let the live-news API be filtered by country and category from the query string.",
+    "us": "As a frontend consuming /api/live-news, I want to request feeds filtered by country and/or category, so I can show a region- or topic-specific subset without filtering client-side.",
+    "context_query": "live news feeds channels country category broadcast",
+    "target_hint": "src/app/api/live-news/route.ts",
+    "acs": [
+      "GET /api/live-news?country=US returns only feeds whose country is US.",
+      "GET /api/live-news?category=finance returns only feeds whose category is finance.",
+      "country and category can be combined and are applied together (AND).",
+      "Filtering is case-insensitive for the provided values.",
+      "The response 'total' equals the number of feeds returned after filtering; with no params the full list is returned unchanged."
+    ],
+    "ac_types": [
+      "contract",
+      "contract",
+      "contract",
+      "contract",
+      "genuine"
+    ]
+  },
+  {
+    "id": "f5_quake_pagination",
+    "request": "Add an optional result limit to the earthquakes API so the client can cap how many it loads.",
+    "us": "As a client rendering earthquake markers, I want to cap the number of events returned by /api/earthquakes via a limit parameter, so large swarms don't overload the map.",
+    "context_query": "earthquake seismic events API route limit results",
+    "target_hint": "src/app/api/earthquakes/route.ts",
+    "acs": [
+      "GET /api/earthquakes?limit=10 returns at most 10 earthquakes.",
+      "Results are capped by taking the strongest (highest magnitude) events first when the limit is applied.",
+      "When limit is absent or invalid (non-numeric, <= 0), all earthquakes are returned.",
+      "The 'total' field equals the number of earthquakes actually returned after the limit is applied.",
+      "The existing Cache-Control response header is preserved unchanged."
+    ],
+    "ac_types": [
+      "contract",
+      "contract",
+      "genuine",
+      "genuine",
+      "genuine"
+    ]
+  }
+]

@@ -1,0 +1,141 @@
+diff --git a/next.config.ts b/next.config.ts
+index 2eeb49b..5896bd3 100644
+--- a/next.config.ts
++++ b/next.config.ts
+@@ -1,31 +1,63 @@
+-import type { NextConfig } from "next";
+-
+-const nextConfig: NextConfig = {
+-  output: 'standalone',
+-  serverExternalPackages: ['ws'],
+-  transpilePackages: ['react-map-gl', 'mapbox-gl', 'maplibre-gl'],
+-  typescript: {
+-    ignoreBuildErrors: true,
+-  },
+-  images: {
+-    remotePatterns: [
+-      { protocol: 'https', hostname: '**' },
+-    ],
+-  },
+-  async headers() {
+-    return [
+-      {
+-        source: '/(.*)',
+-        headers: [
+-          { key: 'Content-Security-Policy', value: "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: wss: data: blob:;" },
+-          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+-          { key: 'X-Content-Type-Options', value: 'nosniff' },
+-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+-          { key: 'X-XSS-Protection', value: '1; mode=block' },
+-        ],
+-      },
+-    ];
+-  },
+-};
+-
+-export default nextConfig;
++import type { NextConfig } from "next";
++import { readdirSync, existsSync } from "fs";
++import { join } from "path";
++
++function getApiRoutes(dir: string, basePath = ""): string[] {
++  const routes: string[] = [];
++  const entries = readdirSync(dir, { withFileTypes: true });
++  for (const entry of entries) {
++    const fullPath = join(dir, entry.name);
++    if (entry.isDirectory()) {
++      const hasRoute =
++        existsSync(join(fullPath, "route.ts")) ||
++        existsSync(join(fullPath, "route.js"));
++      if (hasRoute) {
++        routes.push(`/api${basePath}/${entry.name}`);
++      }
++      routes.push(...getApiRoutes(fullPath, `${basePath}/${entry.name}`));
++    }
++  }
++  return routes;
++}
++
++const apiRoutes = getApiRoutes("./src/app/api")
++  .filter((r) => r !== "/api/health")
++  .sort();
++
++const nextConfig: NextConfig = {
++  output: "standalone",
++  serverExternalPackages: ["ws"],
++  transpilePackages: ["react-map-gl", "mapbox-gl", "maplibre-gl"],
++  typescript: {
++    ignoreBuildErrors: true,
++  },
++  env: {
++    API_ROUTES: JSON.stringify(apiRoutes),
++  },
++  images: {
++    remotePatterns: [{ protocol: "https", hostname: "**" }],
++  },
++  async headers() {
++    return [
++      {
++        source: "/(.*)",
++        headers: [
++          {
++            key: "Content-Security-Policy",
++            value:
++              "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: wss: data: blob:",
++          },
++          {
++            key: "Strict-Transport-Security",
++            value: "max-age=31536000; includeSubDomains",
++          },
++          { key: "X-Content-Type-Options", value: "nosniff" },
++          { key: "X-Frame-Options", value: "SAMEORIGIN" },
++          { key: "X-XSS-Protection", value: "1; mode=block" },
++        ],
++      },
++    ];
++  },
++};
++
++export default nextConfig;
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..cbba8e4 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,16 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from "next/server";
++
++const endpoints: string[] = process.env.API_ROUTES
++  ? JSON.parse(process.env.API_ROUTES)
++  : [];
++
++export async function GET() {
++  return NextResponse.json({
++    status: "operational",
++    platform: "OSIRIS",
++    version: "1.0.0",
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

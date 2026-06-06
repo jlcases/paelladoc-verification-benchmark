@@ -1,0 +1,55 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..4d58193 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,13 +1,26 @@
+ import { NextResponse } from 'next/server';
++import fs from 'fs';
++import path from 'path';
++
++function scanApiRoutes(): string[] {
++  const apiDir = path.join(process.cwd(), 'src', 'app', 'api');
++  const entries = fs.readdirSync(apiDir, { recursive: true, encoding: 'utf8' }) as string[];
++  return entries
++    .filter((e) => e === 'route.ts' || e.endsWith(`${path.sep}route.ts`) || e.endsWith('/route.ts'))
++    .map((e) => {
++      const dir = path.dirname(e);
++      const normalized = dir.split(path.sep).join('/');
++      return `/api/${normalized}`;
++    })
++    .sort();
++}
+ 
+ export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
++  let endpoints: string[];
++  try {
++    endpoints = scanApiRoutes();
++  } catch {
++    endpoints = [
+       '/api/flights',
+       '/api/satellites',
+       '/api/earthquakes',
+@@ -16,6 +29,15 @@ export async function GET() {
+       '/api/markets',
+       '/api/frontlines',
+       '/api/region-dossier',
+-    ],
++    ];
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
+   });
+ }

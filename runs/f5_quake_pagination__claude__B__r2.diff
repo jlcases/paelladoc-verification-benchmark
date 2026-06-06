@@ -1,0 +1,50 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..473fe0b 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,5 +1,5 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextRequest, NextResponse } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+@@ -7,7 +7,10 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
++  const limitParam = request.nextUrl.searchParams.get('limit');
++  const limit = limitParam !== null ? parseInt(limitParam, 10) : null;
++
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,9 +43,11 @@ export async function GET() {
+       };
+     });
+ 
++    const limited = limit !== null && limit > 0 ? earthquakes.slice(0, limit) : earthquakes;
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: limited,
++      total: limited.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e52e7a5..926bb0e 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -286,7 +286,7 @@ export default function Dashboard() {
+   // ── PROGRESSIVE DATA LOADING (request-optimized) ──
+   useEffect(() => {
+     // Priority 1: Core feeds (always needed for panels)
+-    fetchEndpoint('/api/earthquakes');
++    fetchEndpoint('/api/earthquakes?limit=500');
+     fetchEndpoint('/api/news');
+     const marketTimer = setTimeout(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 800);
+ 

@@ -1,0 +1,28 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..f8cbcb2 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -38,10 +38,20 @@ const LIVE_FEEDS = [
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+ ];
+ 
+-export async function GET() {
++export async function GET(request: Request) {
++  const { searchParams } = new URL(request.url);
++  const country = searchParams.get('country')?.toUpperCase() ?? null;
++  const category = searchParams.get('category')?.toLowerCase() ?? null;
++
++  const filtered = LIVE_FEEDS.filter((feed) => {
++    if (country && feed.country !== country) return false;
++    if (category && feed.category !== category) return false;
++    return true;
++  });
++
+   return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
++    feeds: filtered,
++    total: filtered.length,
+     categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
+     timestamp: new Date().toISOString(),
+   }, {

@@ -1,0 +1,72 @@
+diff --git a/src/app/api/space-weather/route.ts b/src/app/api/space-weather/route.ts
+index 03b9f6b..55af50e 100644
+--- a/src/app/api/space-weather/route.ts
++++ b/src/app/api/space-weather/route.ts
+@@ -8,18 +8,58 @@ import { NextResponse } from 'next/server';
+  * Data: Kp index (geomagnetic), solar flares, CME alerts
+  */
+ 
++interface CacheEntry {
++  data: any;
++  timestamp: number;
++}
++
++const cache: Record<string, CacheEntry> = {};
++const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
++
++function getCached(key: string) {
++  const entry = cache[key];
++  if (!entry) return null;
++  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
++    delete cache[key];
++    return null;
++  }
++  return entry.data;
++}
++
++function setCache(key: string, data: any) {
++  cache[key] = { data, timestamp: Date.now() };
++}
++
+ export async function GET() {
+   try {
+     const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
+-      fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
+-        signal: AbortSignal.timeout(8000),
+-      }).then(r => r.json()),
+-      fetch('https://services.swpc.noaa.gov/json/alerts.json', {
+-        signal: AbortSignal.timeout(8000),
+-      }).then(r => r.json()),
+-      fetch('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json', {
+-        signal: AbortSignal.timeout(8000),
+-      }).then(r => r.json()),
++      (async () => {
++        const cached = getCached('kp-index');
++        if (cached) return cached;
++        const res = await fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
++          signal: AbortSignal.timeout(8000),
++        }).then(r => r.json());
++        setCache('kp-index', res);
++        return res;
++      })(),
++      (async () => {
++        const cached = getCached('alerts');
++        if (cached) return cached;
++        const res = await fetch('https://services.swpc.noaa.gov/json/alerts.json', {
++          signal: AbortSignal.timeout(8000),
++        }).then(r => r.json());
++        setCache('alerts', res);
++        return res;
++      })(),
++      (async () => {
++        const cached = getCached('solar-flares');
++        if (cached) return cached;
++        const res = await fetch('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json', {
++          signal: AbortSignal.timeout(8000),
++        }).then(r => r.json());
++        setCache('solar-flares', res);
++        return res;
++      })(),
+     ]);
+ 
+     // Latest Kp index (geomagnetic storm indicator)

@@ -1,0 +1,81 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..545f6ea 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,55 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'fs/promises';
++import path from 'path';
++
++export const dynamic = 'force-dynamic';
++
++const API_DIR = path.join(process.cwd(), 'src', 'app', 'api');
++
++async function scanApiRoutes(dir: string, relativePath: string): Promise<string[]> {
++  const endpoints: string[] = [];
++
++  let entries;
++  try {
++    entries = await readdir(dir, { withFileTypes: true });
++  } catch {
++    return endpoints;
++  }
++
++  const hasRoute = entries.some(
++    (entry) => entry.isFile() && (entry.name === 'route.ts' || entry.name === 'route.js')
++  );
++
++  if (hasRoute && relativePath !== '') {
++    endpoints.push(`/api/${relativePath}`);
++  }
++
++  for (const entry of entries) {
++    if (entry.isDirectory()) {
++      const nextRelative = relativePath ? `${relativePath}/${entry.name}` : entry.name;
++      const subEndpoints = await scanApiRoutes(path.join(dir, entry.name), nextRelative);
++      endpoints.push(...subEndpoints);
++    }
++  }
++
++  return endpoints;
++}
++
++export async function GET() {
++  let endpoints: string[] = [];
++
++  try {
++    endpoints = await scanApiRoutes(API_DIR, '');
++  } catch {
++    // Graceful fallback: leave endpoints empty on any failure
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

@@ -1,0 +1,11 @@
+{
+  "feature": "f4_news_filter",
+  "engine": "kimi",
+  "arm": "B",
+  "run": 3,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": null
+}

@@ -1,0 +1,88 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..74acd27 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,62 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'fs/promises';
++import { join } from 'path';
++
++const API_DIR = join(process.cwd(), 'src', 'app', 'api');
++
++async function scanRoutes(dir: string, prefix: string = ''): Promise<string[]> {
++  let entries;
++  try {
++    entries = await readdir(dir, { withFileTypes: true });
++  } catch {
++    return [];
++  }
++
++  const endpoints: string[] = [];
++
++  for (const entry of entries) {
++    if (!entry.isDirectory()) continue;
++    if (entry.name === 'health') continue;
++
++    const fullPath = join(dir, entry.name);
++    const routePath = prefix ? `${prefix}/${entry.name}` : entry.name;
++
++    let hasRoute = false;
++    try {
++      const subEntries = await readdir(fullPath);
++      hasRoute = subEntries.some((name) =>
++        /^route\.(ts|js|tsx|jsx|mjs|cjs)$/.test(name)
++      );
++    } catch {
++      continue;
++    }
++
++    if (hasRoute) {
++      endpoints.push(`/api/${routePath}`);
++    }
++
++    const nested = await scanRoutes(fullPath, routePath);
++    endpoints.push(...nested);
++  }
++
++  return endpoints;
++}
++
++export async function GET() {
++  let endpoints: string[] = [];
++
++  try {
++    endpoints = await scanRoutes(API_DIR);
++  } catch {
++    // Graceful fallback: empty array on scan failure
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

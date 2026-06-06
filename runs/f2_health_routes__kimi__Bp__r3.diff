@@ -1,0 +1,87 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..7bf5417 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,61 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'fs/promises';
++import { join } from 'path';
++
++const API_ROOT = join(process.cwd(), 'src', 'app', 'api');
++
++async function scanApiRoutes(dir: string, prefix: string): Promise<string[]> {
++  const routes: string[] = [];
++
++  let entries;
++  try {
++    entries = await readdir(dir, { withFileTypes: true });
++  } catch {
++    return routes;
++  }
++
++  for (const entry of entries) {
++    if (!entry.isDirectory()) continue;
++
++    const childDir = join(dir, entry.name);
++    const childPrefix = `${prefix}/${entry.name}`;
++
++    let hasRouteFile = false;
++    try {
++      const children = await readdir(childDir);
++      hasRouteFile = children.some(
++        (f) => f === 'route.ts' || f === 'route.js'
++      );
++    } catch {
++      continue;
++    }
++
++    if (hasRouteFile) {
++      routes.push(childPrefix);
++    }
++
++    const nested = await scanApiRoutes(childDir, childPrefix);
++    routes.push(...nested);
++  }
++
++  return routes;
++}
++
++export async function GET() {
++  let endpoints: string[] = [];
++
++  try {
++    endpoints = await scanApiRoutes(API_ROOT, '/api');
++  } catch {
++    endpoints = [];
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

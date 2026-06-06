@@ -1,0 +1,145 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..2980366 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,17 +1,34 @@
+ 
+-import { NextResponse } from 'next/server';
+-
+-/**
+- * OSIRIS — Earthquake Data API
+- * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+- * No API key required
+- */
+-
+-export async function GET() {
+-  try {
+-    const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+-    const res = await fetch(url, {
+-      signal: AbortSignal.timeout(10000),
++import { NextResponse } from 'next/server';
++
++/**
++ * OSIRIS — Earthquake Data API
++ * Fetches real-time seismic events from USGS (last 24h, M2.5+)
++ * Optional query: ?minMagnitude=4.5 filters out smaller events
++ * No API key required
++ */
++
++function parseMinimumMagnitude(searchParams: URLSearchParams): number | null {
++  const raw = searchParams.get('minMagnitude') ?? searchParams.get('minMag');
++  if (raw === null || raw.trim() === '') return null;
++
++  const value = Number(raw);
++  return Number.isFinite(value) ? value : Number.NaN;
++}
++
++export async function GET(request: Request) {
++  try {
++    const minMagnitude = parseMinimumMagnitude(new URL(request.url).searchParams);
++    if (Number.isNaN(minMagnitude)) {
++      return NextResponse.json(
++        { earthquakes: [], error: 'minMagnitude must be a valid number' },
++        { status: 400 },
++      );
++    }
++
++    const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
++    const res = await fetch(url, {
++      signal: AbortSignal.timeout(10000),
+     });
+ 
+     if (!res.ok) {
+@@ -21,30 +38,36 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
+-      const coords = f.geometry?.coordinates || [0, 0, 0];
+-      const props = f.properties || {};
+-      return {
+-        id: f.id,
+-        lat: coords[1],
+-        lng: coords[0],
+-        depth: coords[2],
+-        magnitude: props.mag,
+-        place: props.place,
+-        time: props.time,
+-        url: props.url,
+-        tsunami: props.tsunami,
+-        type: props.type,
+-        felt: props.felt,
+-        alert: props.alert,
+-      };
+-    });
+-
+-    return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
+-      timestamp: new Date().toISOString(),
+-    }, {
++    const earthquakes = features
++      .map((f: any) => {
++        const coords = f.geometry?.coordinates || [0, 0, 0];
++        const props = f.properties || {};
++        return {
++          id: f.id,
++          lat: coords[1],
++          lng: coords[0],
++          depth: coords[2],
++          magnitude: props.mag,
++          place: props.place,
++          time: props.time,
++          url: props.url,
++          tsunami: props.tsunami,
++          type: props.type,
++          felt: props.felt,
++          alert: props.alert,
++        };
++      })
++      .filter((earthquake: any) => {
++        if (minMagnitude === null) return true;
++        return typeof earthquake.magnitude === 'number' && earthquake.magnitude >= minMagnitude;
++      });
++
++    return NextResponse.json({
++      earthquakes,
++      total: earthquakes.length,
++      minMagnitude,
++      timestamp: new Date().toISOString(),
++    }, {
+       headers: {
+         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+       },
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e52e7a5..8064990 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -21,6 +21,9 @@ const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
+ const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
+ const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
+ 
++const EARTHQUAKE_MIN_MAGNITUDE = 4.5;
++const EARTHQUAKES_ENDPOINT = `/api/earthquakes?minMagnitude=${EARTHQUAKE_MIN_MAGNITUDE}`;
++
+ function useIsMobile() {
+   const [isMobile, setIsMobile] = useState(false);
+   useEffect(() => {
+@@ -286,7 +289,7 @@ export default function Dashboard() {
+   // ── PROGRESSIVE DATA LOADING (request-optimized) ──
+   useEffect(() => {
+     // Priority 1: Core feeds (always needed for panels)
+-    fetchEndpoint('/api/earthquakes');
++    fetchEndpoint(EARTHQUAKES_ENDPOINT);
+     fetchEndpoint('/api/news');
+     const marketTimer = setTimeout(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 800);
+ 
+@@ -300,7 +303,7 @@ export default function Dashboard() {
+ 
+     // Polling — OPTIMIZED intervals to minimize edge requests
+     const intervals = [
+-      setInterval(() => fetchEndpoint('/api/earthquakes'), 900000),  // 15 min (was 5)
++      setInterval(() => fetchEndpoint(EARTHQUAKES_ENDPOINT), 900000),  // 15 min (was 5)
+       setInterval(() => fetchEndpoint('/api/news'), 1800000),        // 30 min (was 10)
+       setInterval(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 900000), // 15 min (was 5)
+     ];

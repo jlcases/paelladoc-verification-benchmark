@@ -1,0 +1,83 @@
+diff --git a/src/app/api/space-weather/route.ts b/src/app/api/space-weather/route.ts
+index 03b9f6b..c7e6304 100644
+--- a/src/app/api/space-weather/route.ts
++++ b/src/app/api/space-weather/route.ts
+@@ -8,7 +8,31 @@ import { NextResponse } from 'next/server';
+  * Data: Kp index (geomagnetic), solar flares, CME alerts
+  */
+ 
++const CACHE_TTL_MS = 60_000; // 60 seconds
++
++interface SpaceWeatherPayload {
++  kp_index: number;
++  storm_level: string;
++  storm_color: string;
++  kp_timestamp: string;
++  alerts: { id: string; issue_datetime: string; message: string }[];
++  solar_flares: { class: string; begin: string; peak: string; end: string }[];
++  timestamp: string;
++}
++
++let cachedPayload: SpaceWeatherPayload | null = null;
++let cachedAt = 0;
++
+ export async function GET() {
++  const now = Date.now();
++  if (cachedPayload && now - cachedAt < CACHE_TTL_MS) {
++    const age = Math.floor((now - cachedAt) / 1000);
++    const maxAge = Math.floor(CACHE_TTL_MS / 1000);
++    return NextResponse.json(cachedPayload, {
++      headers: { 'Cache-Control': `public, max-age=${maxAge - age}, s-maxage=${maxAge - age}` },
++    });
++  }
++
+   try {
+     const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
+       fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
+@@ -42,11 +66,11 @@ export async function GET() {
+     else if (kpIndex >= 3) { stormLevel = 'Unsettled'; stormColor = '#D4AF37'; }
+ 
+     // Recent alerts
+-    const alerts: any[] = [];
++    const alerts: SpaceWeatherPayload['alerts'] = [];
+     if (alertsRes.status === 'fulfilled' && Array.isArray(alertsRes.value)) {
+       for (const alert of alertsRes.value.slice(0, 10)) {
+         alerts.push({
+-          id: alert.product_id || `alert-${Date.now()}`,
++          id: alert.product_id || `alert-${now}`,
+           issue_datetime: alert.issue_datetime,
+           message: (alert.message || '').substring(0, 200),
+         });
+@@ -54,7 +78,7 @@ export async function GET() {
+     }
+ 
+     // Recent solar flares
+-    const flares: any[] = [];
++    const flares: SpaceWeatherPayload['solar_flares'] = [];
+     if (flareRes.status === 'fulfilled' && Array.isArray(flareRes.value)) {
+       for (const flare of flareRes.value.slice(0, 5)) {
+         if (!flare.max_class) continue;
+@@ -67,7 +91,7 @@ export async function GET() {
+       }
+     }
+ 
+-    return NextResponse.json({
++    const payload: SpaceWeatherPayload = {
+       kp_index: kpIndex,
+       storm_level: stormLevel,
+       storm_color: stormColor,
+@@ -75,6 +99,14 @@ export async function GET() {
+       alerts,
+       solar_flares: flares,
+       timestamp: new Date().toISOString(),
++    };
++
++    cachedPayload = payload;
++    cachedAt = now;
++
++    const maxAge = Math.floor(CACHE_TTL_MS / 1000);
++    return NextResponse.json(payload, {
++      headers: { 'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}` },
+     });
+   } catch (error) {
+     console.error('Space Weather API error:', error);

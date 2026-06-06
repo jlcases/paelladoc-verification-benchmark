@@ -1,0 +1,40 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..60d2212 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -8,14 +8,31 @@ export async function GET() {
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+     endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
++      '/api/ai',
++      '/api/air-quality',
++      '/api/cctv',
++      '/api/country-risk',
++      '/api/cyber-threats',
+       '/api/earthquakes',
+-      '/api/news',
++      '/api/fires',
++      '/api/flights',
++      '/api/frontlines',
+       '/api/gdelt',
++      '/api/github-webhook',
++      '/api/infrastructure',
++      '/api/live-news',
++      '/api/maritime',
+       '/api/markets',
+-      '/api/frontlines',
++      '/api/news',
++      '/api/osint',
+       '/api/region-dossier',
++      '/api/satellites',
++      '/api/scanner',
++      '/api/scm-suppliers',
++      '/api/sentinel',
++      '/api/space-weather',
++      '/api/stats',
++      '/api/weather',
+     ],
+   });
+ }

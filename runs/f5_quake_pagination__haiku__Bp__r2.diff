@@ -1,0 +1,50 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..bc521dc 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,13 +1,16 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextRequest, NextResponse } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query Parameters:
++ *   - limit: Optional maximum number of earthquakes to return (must be > 0)
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,9 +43,24 @@ export async function GET() {
+       };
+     });
+ 
++    // Sort by magnitude (strongest first) and apply limit if provided
++    earthquakes.sort((a: any, b: any) => (b.magnitude || 0) - (a.magnitude || 0));
++
++    const limitParam = request.nextUrl.searchParams.get('limit');
++    let limit: number | null = null;
++
++    if (limitParam) {
++      const parsed = parseInt(limitParam, 10);
++      if (!isNaN(parsed) && parsed > 0) {
++        limit = parsed;
++      }
++    }
++
++    const resultEarthquakes = limit ? earthquakes.slice(0, limit) : earthquakes;
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: resultEarthquakes,
++      total: resultEarthquakes.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

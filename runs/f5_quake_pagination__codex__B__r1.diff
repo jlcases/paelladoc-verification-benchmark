@@ -1,0 +1,37 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..878b515 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,8 +7,20 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++function parseResultLimit(searchParams: URLSearchParams): number | null {
++  const rawLimit = searchParams.get('limit');
++  if (rawLimit === null || rawLimit.trim() === '') return null;
++
++  const limit = Number(rawLimit);
++  if (!Number.isInteger(limit) || limit < 0) return null;
++
++  return limit;
++}
++
++export async function GET(request: Request) {
+   try {
++    const { searchParams } = new URL(request.url);
++    const limit = parseResultLimit(searchParams);
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -20,8 +32,9 @@ export async function GET() {
+ 
+     const data = await res.json();
+     const features = data.features || [];
++    const limitedFeatures = limit === null ? features : features.slice(0, limit);
+ 
+-    const earthquakes = features.map((f: any) => {
++    const earthquakes = limitedFeatures.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {

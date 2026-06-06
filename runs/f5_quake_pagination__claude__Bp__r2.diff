@@ -1,0 +1,30 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..6b4d766 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,7 +7,12 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(req: Request) {
++  const { searchParams } = new URL(req.url);
++  const limitParam = searchParams.get('limit');
++  const limitNum = limitParam !== null ? parseInt(limitParam, 10) : NaN;
++  const applyLimit = !isNaN(limitNum) && limitNum > 0;
++
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,6 +45,11 @@ export async function GET() {
+       };
+     });
+ 
++    if (applyLimit) {
++      earthquakes.sort((a: { magnitude: number }, b: { magnitude: number }) => b.magnitude - a.magnitude);
++      earthquakes.splice(limitNum);
++    }
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,

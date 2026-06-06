@@ -1,0 +1,170 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..32e565b 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,145 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
++import { NextResponse } from 'next/server';
++import path from 'node:path';
++import { readdir, readFile } from 'node:fs/promises';
++
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++const API_ROUTE_FILE = /^route\.(?:t|j)sx?$/;
++
++async function collectRouteFiles(rootDir: string): Promise<string[]> {
++  let entries;
++
++  try {
++    entries = await readdir(/*turbopackIgnore: true*/ rootDir, { withFileTypes: true });
++  } catch {
++    return [];
++  }
++
++  const routeFiles = await Promise.all(
++    entries.map(async (entry) => {
++      const entryPath = path.join(rootDir, entry.name);
++
++      if (entry.isDirectory()) {
++        return collectRouteFiles(entryPath);
++      }
++
++      return entry.isFile() && API_ROUTE_FILE.test(entry.name) ? [entryPath] : [];
++    })
++  );
++
++  return routeFiles.flat();
++}
++
++function normalizeRoutePath(routePath: string): string | null {
++  const routeSegments = routePath
++    .split(/[\\/]/)
++    .filter(Boolean)
++    .filter((segment) => !segment.startsWith('@'))
++    .filter((segment) => !(segment.startsWith('(') && segment.endsWith(')')));
++
++  const apiIndex = routeSegments.indexOf('api');
++
++  if (apiIndex === -1) {
++    return null;
++  }
++
++  const endpointSegments = routeSegments.slice(apiIndex);
++
++  if (endpointSegments.at(-1) === 'route') {
++    endpointSegments.pop();
++  }
++
++  if (endpointSegments.length === 0) {
++    return null;
++  }
++
++  return `/${endpointSegments.join('/')}`;
++}
++
++async function getSourceRouteEndpoints(): Promise<string[]> {
++  const sourceApiDir = path.join(/*turbopackIgnore: true*/ process.cwd(), 'src', 'app', 'api');
++  const routeFiles = await collectRouteFiles(sourceApiDir);
++
++  return routeFiles
++    .map((routeFile) =>
++      normalizeRoutePath(path.join('api', path.relative(sourceApiDir, path.dirname(routeFile))))
++    )
++    .filter((endpoint): endpoint is string => endpoint !== null);
++}
++
++async function getBuiltManifestRouteEndpoints(): Promise<string[]> {
++  const manifestPaths = [
++    path.join(/*turbopackIgnore: true*/ process.cwd(), '.next', 'server', 'app-paths-manifest.json'),
++    path.join(/*turbopackIgnore: true*/ process.cwd(), 'server', 'app-paths-manifest.json'),
++  ];
++
++  for (const manifestPath of manifestPaths) {
++    try {
++      const manifest = JSON.parse(
++        await readFile(/*turbopackIgnore: true*/ manifestPath, 'utf8')
++      ) as Record<string, string>;
++      const endpoints = Object.entries(manifest).flatMap(([routePath, filePath]) => [
++        normalizeRoutePath(routePath),
++        normalizeRoutePath(filePath.replace(/\.[cm]?js$/, '')),
++      ]);
++
++      if (endpoints.some((endpoint) => endpoint !== null)) {
++        return endpoints.filter((endpoint): endpoint is string => endpoint !== null);
++      }
++    } catch {
++      // Try the next production manifest location.
++    }
++  }
++
++  return [];
++}
++
++async function getCompiledRouteEndpoints(): Promise<string[]> {
++  const compiledApiDirs = [
++    path.join(/*turbopackIgnore: true*/ process.cwd(), '.next', 'server', 'app', 'api'),
++    path.join(/*turbopackIgnore: true*/ process.cwd(), 'server', 'app', 'api'),
++  ];
++
++  for (const compiledApiDir of compiledApiDirs) {
++    const routeFiles = await collectRouteFiles(compiledApiDir);
++
++    if (routeFiles.length > 0) {
++      return routeFiles
++        .map((routeFile) =>
++          normalizeRoutePath(path.join('api', path.relative(compiledApiDir, path.dirname(routeFile))))
++        )
++        .filter((endpoint): endpoint is string => endpoint !== null);
++    }
++  }
++
++  return [];
++}
++
++async function getApiEndpoints(): Promise<string[]> {
++  const routeSources =
++    process.env.NODE_ENV === 'production'
++      ? [getBuiltManifestRouteEndpoints, getCompiledRouteEndpoints, getSourceRouteEndpoints]
++      : [getSourceRouteEndpoints, getBuiltManifestRouteEndpoints, getCompiledRouteEndpoints];
++
++  for (const getRouteEndpoints of routeSources) {
++    const endpoints = await getRouteEndpoints();
++
++    if (endpoints.length > 0) {
++      return [...new Set(endpoints)].sort();
++    }
++  }
++
++  return [];
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
+     version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints: await getApiEndpoints(),
++  });
++}

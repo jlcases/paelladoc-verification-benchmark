@@ -1,0 +1,39 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..f7afb01 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -1,5 +1,5 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Live News Feeds v3
+@@ -38,10 +38,24 @@ const LIVE_FEEDS = [
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+ ];
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
++  const searchParams = request.nextUrl.searchParams;
++  const countries = searchParams.getAll('country').map(c => c.toUpperCase());
++  const categories = searchParams.getAll('category').map(c => c.toLowerCase());
++
++  let filtered = LIVE_FEEDS;
++
++  if (countries.length > 0) {
++    filtered = filtered.filter(feed => countries.includes(feed.country));
++  }
++
++  if (categories.length > 0) {
++    filtered = filtered.filter(feed => categories.includes(feed.category));
++  }
++
+   return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
++    feeds: filtered,
++    total: filtered.length,
+     categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
+     timestamp: new Date().toISOString(),
+   }, {

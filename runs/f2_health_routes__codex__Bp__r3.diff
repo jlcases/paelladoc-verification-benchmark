@@ -1,0 +1,107 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..7e102a8 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,81 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { readdir } from 'node:fs/promises';
++import { join } from 'node:path';
++import { NextResponse } from 'next/server';
++
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++const API_ROUTES_DIR = join(process.cwd(), 'src', 'app', 'api');
++const ROUTE_FILE_PATTERN = /^route\.(?:js|jsx|mjs|ts|tsx)$/;
++
++export async function GET() {
++  try {
++    return healthResponse(await discoverApiEndpoints());
++  } catch {
++    return healthResponse([]);
++  }
++}
++
++function healthResponse(endpoints: string[]) {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}
++
++async function discoverApiEndpoints(): Promise<string[]> {
++  const endpoints = await collectRouteEndpoints(API_ROUTES_DIR, []);
++  return [...new Set(endpoints)]
++    .filter((endpoint) => endpoint.startsWith('/api/'))
++    .sort((a, b) => a.localeCompare(b));
++}
++
++async function collectRouteEndpoints(
++  directory: string,
++  routeSegments: string[],
++): Promise<string[]> {
++  let entries;
++
++  try {
++    entries = await readdir(directory, { withFileTypes: true });
++  } catch {
++    return [];
++  }
++
++  const endpoints: string[] = [];
++
++  for (const entry of entries) {
++    if (entry.isFile() && ROUTE_FILE_PATTERN.test(entry.name)) {
++      endpoints.push(toApiPath(routeSegments));
++      continue;
++    }
++
++    if (entry.isDirectory() && shouldScanDirectory(entry.name)) {
++      const nextSegments = isRouteGroup(entry.name)
++        ? routeSegments
++        : [...routeSegments, entry.name];
++
++      endpoints.push(
++        ...(await collectRouteEndpoints(join(directory, entry.name), nextSegments)),
++      );
++    }
++  }
++
++  return endpoints;
++}
++
++function shouldScanDirectory(segment: string) {
++  return !segment.startsWith('_') && !segment.startsWith('@');
++}
++
++function isRouteGroup(segment: string) {
++  return segment.startsWith('(') && segment.endsWith(')');
++}
++
++function toApiPath(routeSegments: string[]) {
++  return `/api/${routeSegments.join('/')}`;
++}

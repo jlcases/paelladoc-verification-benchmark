@@ -1,0 +1,75 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..df11263 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,49 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import fs from 'fs';
++import path from 'path';
++
++function collectRoutes(dir: string, base: string): string[] {
++  const routes: string[] = [];
++  let entries: fs.Dirent[];
++  try {
++    entries = fs.readdirSync(dir, { withFileTypes: true });
++  } catch {
++    return routes;
++  }
++  for (const entry of entries) {
++    if (entry.isDirectory()) {
++      routes.push(...collectRoutes(path.join(dir, entry.name), base));
++    } else if (entry.name === 'route.ts' || entry.name === 'route.js') {
++      const rel = path.relative(base, dir).split(path.sep).join('/');
++      if (rel !== 'api/health') routes.push('/' + rel);
++    }
++  }
++  return routes;
++}
++
++function discoverApiRoutes(): string[] {
++  const cwd = process.cwd();
++  // Development: source tree is present
++  // Production standalone: compiled routes live under .next/server/app
++  const candidates = [
++    path.join(cwd, 'src', 'app'),
++    path.join(cwd, '.next', 'server', 'app'),
++  ];
++  for (const base of candidates) {
++    const apiDir = path.join(base, 'api');
++    const routes = collectRoutes(apiDir, base);
++    if (routes.length > 0) return routes.sort();
++  }
++  return [];
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints: discoverApiRoutes(),
++  });
++}

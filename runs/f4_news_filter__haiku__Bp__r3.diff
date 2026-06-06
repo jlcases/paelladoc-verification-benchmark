@@ -1,0 +1,34 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..2126ddf 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -38,10 +38,26 @@ const LIVE_FEEDS = [
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+ ];
+ 
+-export async function GET() {
++export async function GET(request: Request) {
++  const { searchParams } = new URL(request.url);
++  const countryParam = searchParams.get('country');
++  const categoryParam = searchParams.get('category');
++
++  let filteredFeeds = LIVE_FEEDS;
++
++  if (countryParam) {
++    const countryUpper = countryParam.toUpperCase();
++    filteredFeeds = filteredFeeds.filter(feed => feed.country.toUpperCase() === countryUpper);
++  }
++
++  if (categoryParam) {
++    const categoryLower = categoryParam.toLowerCase();
++    filteredFeeds = filteredFeeds.filter(feed => feed.category.toLowerCase() === categoryLower);
++  }
++
+   return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
++    feeds: filteredFeeds,
++    total: filteredFeeds.length,
+     categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
+     timestamp: new Date().toISOString(),
+   }, {

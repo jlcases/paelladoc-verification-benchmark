@@ -1,0 +1,14 @@
+diff --git a/src/app/api/space-weather/route.ts b/src/app/api/space-weather/route.ts
+index 03b9f6b..95d82aa 100644
+--- a/src/app/api/space-weather/route.ts
++++ b/src/app/api/space-weather/route.ts
+@@ -8,6 +8,9 @@ import { NextResponse } from 'next/server';
+  * Data: Kp index (geomagnetic), solar flares, CME alerts
+  */
+ 
++// Cache the route response for 5 minutes to avoid hammering NOAA on every request
++export const revalidate = 300;
++
+ export async function GET() {
+   try {
+     const [kpRes, alertsRes, flareRes] = await Promise.allSettled([

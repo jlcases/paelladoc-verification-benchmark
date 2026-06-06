@@ -1,0 +1,91 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..692b194 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -4,11 +4,56 @@ import { NextResponse } from 'next/server';
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
++ * Optional query params:
++ * - minMagnitude / minMag: only return quakes at or above this magnitude
+  * No API key required
+  */
+ 
+-export async function GET() {
++const DEFAULT_MIN_MAGNITUDE = 2.5;
++
++interface UsgsEarthquakeFeature {
++  id?: string;
++  geometry?: {
++    coordinates?: [number, number, number];
++  };
++  properties?: {
++    mag?: number | null;
++    place?: string;
++    time?: number;
++    url?: string;
++    tsunami?: number;
++    type?: string;
++    felt?: number | null;
++    alert?: string | null;
++  };
++}
++
++function getMinMagnitude(request: Request) {
++  const searchParams = new URL(request.url).searchParams;
++  const rawMinMagnitude = searchParams.get('minMagnitude') ?? searchParams.get('minMag');
++
++  if (rawMinMagnitude === null || rawMinMagnitude.trim() === '') {
++    return { minMagnitude: DEFAULT_MIN_MAGNITUDE };
++  }
++
++  const minMagnitude = Number(rawMinMagnitude);
++  if (!Number.isFinite(minMagnitude) || minMagnitude < 0) {
++    return {
++      minMagnitude: DEFAULT_MIN_MAGNITUDE,
++      error: 'minMagnitude must be a non-negative number',
++    };
++  }
++
++  return { minMagnitude };
++}
++
++export async function GET(request: Request) {
+   try {
++    const { minMagnitude, error } = getMinMagnitude(request);
++    if (error) {
++      return NextResponse.json({ earthquakes: [], error }, { status: 400 });
++    }
++
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -19,9 +64,9 @@ export async function GET() {
+     }
+ 
+     const data = await res.json();
+-    const features = data.features || [];
++    const features: UsgsEarthquakeFeature[] = Array.isArray(data.features) ? data.features : [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    const earthquakes = features.map((f) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -38,11 +83,16 @@ export async function GET() {
+         felt: props.felt,
+         alert: props.alert,
+       };
++    }).filter((earthquake) => {
++      const magnitude = earthquake.magnitude;
++      return typeof magnitude === 'number' && Number.isFinite(magnitude) && magnitude >= minMagnitude;
+     });
+ 
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,
++      unfilteredTotal: features.length,
++      minMagnitude,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

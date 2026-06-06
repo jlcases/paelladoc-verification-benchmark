@@ -1,0 +1,62 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..74f593d 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,4 +1,40 @@
+ import { NextResponse } from 'next/server';
++import fs from 'fs';
++import path from 'path';
++
++function scanApiRoutes(): string[] {
++  try {
++    const apiDir = path.join(process.cwd(), 'src', 'app', 'api');
++    const routes: string[] = [];
++
++    function walk(dir: string, urlPath: string) {
++      let entries: fs.Dirent[];
++      try {
++        entries = fs.readdirSync(dir, { withFileTypes: true });
++      } catch {
++        return;
++      }
++
++      const hasRoute = entries.some(
++        (e) => e.isFile() && (e.name === 'route.ts' || e.name === 'route.js')
++      );
++      if (hasRoute) {
++        routes.push(urlPath);
++      }
++
++      for (const entry of entries) {
++        if (entry.isDirectory()) {
++          walk(path.join(dir, entry.name), `${urlPath}/${entry.name}`);
++        }
++      }
++    }
++
++    walk(apiDir, '/api');
++    return routes.sort();
++  } catch {
++    return [];
++  }
++}
+ 
+ export async function GET() {
+   return NextResponse.json({
+@@ -7,15 +43,6 @@ export async function GET() {
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints: scanApiRoutes(),
+   });
+ }

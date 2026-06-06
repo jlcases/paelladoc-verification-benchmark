@@ -1,0 +1,158 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..036c94f 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,132 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { readdir, readFile } from 'node:fs/promises';
++import path from 'node:path';
++import { NextResponse } from 'next/server';
++
++export const runtime = 'nodejs';
++export const dynamic = 'force-dynamic';
++
++const ROUTE_HANDLER_FILES = new Set(['route.ts', 'route.js']);
++
++function isVisibleRouteSegment(segment: string) {
++  return !(segment.startsWith('(') && segment.endsWith(')')) && !segment.startsWith('@');
++}
++
++function endpointFromSegments(segments: string[]) {
++  const visibleSegments = segments.filter(isVisibleRouteSegment);
++  return `/api${visibleSegments.length ? `/${visibleSegments.join('/')}` : ''}`;
++}
++
++function sortEndpoints(endpoints: Iterable<string>) {
++  return [...endpoints].sort((a, b) => a.localeCompare(b));
++}
++
++async function collectApiRoutes(directory: string, segments: string[], endpoints: Set<string>) {
++  const entries = await readdir(/* turbopackIgnore: true */ directory, { withFileTypes: true });
++
++  if (entries.some((entry) => entry.isFile() && ROUTE_HANDLER_FILES.has(entry.name))) {
++    endpoints.add(endpointFromSegments(segments));
++  }
++
++  await Promise.all(
++    entries
++      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
++      .map((entry) =>
++        collectApiRoutes(path.join(/* turbopackIgnore: true */ directory, entry.name), [...segments, entry.name], endpoints),
++      ),
++  );
++}
++
++async function discoverSourceApiRoutes() {
++  const endpoints = new Set<string>();
++  const roots = [
++    path.join(/* turbopackIgnore: true */ process.cwd(), 'src', 'app', 'api'),
++    path.join(/* turbopackIgnore: true */ process.cwd(), 'app', 'api'),
++  ];
++
++  await Promise.all(
++    roots.map(async (root) => {
++      try {
++        await collectApiRoutes(root, [], endpoints);
++      } catch (error) {
++        const code = (error as NodeJS.ErrnoException).code;
++        if (code !== 'ENOENT') throw error;
++      }
++    }),
++  );
++
++  return sortEndpoints(endpoints);
++}
++
++function endpointFromManifestPath(routePath: string) {
++  const normalizedPath = routePath.replace(/\\/g, '/').replace(/\.(?:js|ts|mjs|cjs)$/, '');
++  const withoutRouteFile = normalizedPath.endsWith('/route')
++    ? normalizedPath.slice(0, -'/route'.length)
++    : normalizedPath;
++
++  if (withoutRouteFile === '/api' || withoutRouteFile.startsWith('/api/')) {
++    return endpointFromSegments(withoutRouteFile.split('/').filter(Boolean).slice(1));
++  }
++
++  const appApiIndex = withoutRouteFile.indexOf('app/api');
++  if (appApiIndex === -1) return null;
++
++  const beforeAppApi = withoutRouteFile[appApiIndex - 1];
++  if (appApiIndex > 0 && beforeAppApi !== '/') return null;
++
++  const apiSegments = withoutRouteFile
++    .slice(appApiIndex + 'app/api'.length)
++    .split('/')
++    .filter(Boolean);
++
++  return endpointFromSegments(apiSegments);
++}
++
++async function discoverManifestApiRoutes() {
++  const endpoints = new Set<string>();
++  const manifests = [
++    path.join(/* turbopackIgnore: true */ process.cwd(), '.next', 'app-path-routes-manifest.json'),
++    path.join(/* turbopackIgnore: true */ process.cwd(), '.next', 'server', 'app-paths-manifest.json'),
++    path.join(/* turbopackIgnore: true */ process.cwd(), '.next', 'dev', 'app-path-routes-manifest.json'),
++    path.join(/* turbopackIgnore: true */ process.cwd(), '.next', 'dev', 'server', 'app-paths-manifest.json'),
++  ];
++
++  await Promise.all(
++    manifests.map(async (manifest) => {
++      try {
++        const data = JSON.parse(await readFile(/* turbopackIgnore: true */ manifest, 'utf8')) as Record<string, unknown>;
++
++        for (const [key, value] of Object.entries(data)) {
++          for (const candidate of [key, value]) {
++            if (typeof candidate !== 'string') continue;
++
++            const endpoint = endpointFromManifestPath(candidate);
++            if (endpoint?.startsWith('/api')) endpoints.add(endpoint);
++          }
++        }
++      } catch (error) {
++        const code = (error as NodeJS.ErrnoException).code;
++        if (code !== 'ENOENT') throw error;
++      }
++    }),
++  );
++
++  return sortEndpoints(endpoints);
++}
++
++async function discoverApiRoutes() {
++  const sourceRoutes = await discoverSourceApiRoutes();
++  if (sourceRoutes.length > 0) return sourceRoutes;
++
++  return discoverManifestApiRoutes();
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints: await discoverApiRoutes(),
++  });
++}

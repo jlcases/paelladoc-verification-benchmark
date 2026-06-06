@@ -1,0 +1,11 @@
+{
+  "feature": "f2_health_routes",
+  "engine": "claude",
+  "arm": "B",
+  "run": 2,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 0.5316361999999999
+}

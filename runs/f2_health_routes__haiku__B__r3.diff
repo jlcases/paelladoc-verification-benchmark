@@ -1,0 +1,70 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..ae3b08d 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,55 @@
+ import { NextResponse } from 'next/server';
+ 
+ export async function GET() {
++  const endpoints = [
++    '/api/ai/analyze',
++    '/api/ai/briefing',
++    '/api/air-quality',
++    '/api/cctv',
++    '/api/cctv/stream-status',
++    '/api/country-risk',
++    '/api/cyber-threats',
++    '/api/earthquakes',
++    '/api/fires',
++    '/api/flights',
++    '/api/frontlines',
++    '/api/gdelt',
++    '/api/github-webhook',
++    '/api/infrastructure',
++    '/api/live-news',
++    '/api/maritime',
++    '/api/markets',
++    '/api/news',
++    '/api/osint/bgp',
++    '/api/osint/certs',
++    '/api/osint/cve',
++    '/api/osint/dns',
++    '/api/osint/github',
++    '/api/osint/ip',
++    '/api/osint/leaks',
++    '/api/osint/mac',
++    '/api/osint/phone',
++    '/api/osint/sanctions',
++    '/api/osint/shodan',
++    '/api/osint/sweep',
++    '/api/osint/threats',
++    '/api/osint/whois',
++    '/api/region-dossier',
++    '/api/satellites',
++    '/api/scanner',
++    '/api/scm-suppliers',
++    '/api/sentinel',
++    '/api/space-weather',
++    '/api/stats',
++    '/api/weather',
++  ].sort();
++
+   return NextResponse.json({
+     status: 'operational',
+     platform: 'OSIRIS',
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints,
+   });
+ }

@@ -1,0 +1,69 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..b984dec 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,5 +1,4 @@
+-
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+@@ -7,8 +6,31 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++const MAX_EARTHQUAKE_LIMIT = 500;
++
++function parseLimit(searchParams: URLSearchParams): number | undefined {
++  const rawLimit = searchParams.get('limit');
++  if (rawLimit === null) return undefined;
++
++  const normalizedLimit = rawLimit.trim();
++  if (!/^[1-9]\d*$/.test(normalizedLimit)) {
++    return NaN;
++  }
++
++  const limit = Number.parseInt(normalizedLimit, 10);
++  return Math.min(limit, MAX_EARTHQUAKE_LIMIT);
++}
++
++export async function GET(request: NextRequest) {
+   try {
++    const limit = parseLimit(request.nextUrl.searchParams);
++    if (Number.isNaN(limit)) {
++      return NextResponse.json(
++        { earthquakes: [], error: 'Invalid limit parameter. Use a positive integer.' },
++        { status: 400 }
++      );
++    }
++
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -20,8 +42,9 @@ export async function GET() {
+ 
+     const data = await res.json();
+     const features = data.features || [];
++    const limitedFeatures = limit === undefined ? features : features.slice(0, limit);
+ 
+-    const earthquakes = features.map((f: any) => {
++    const earthquakes = limitedFeatures.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -43,6 +66,8 @@ export async function GET() {
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,
++      available: features.length,
++      limit: limit ?? null,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {
+@@ -54,4 +79,3 @@ export async function GET() {
+     return NextResponse.json({ earthquakes: [], error: 'Failed to fetch earthquake data' }, { status: 500 });
+   }
+ }
+-
