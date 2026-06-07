@@ -1,0 +1,11 @@
+{
+  "feature": "f1_quake_filter",
+  "engine": "opusmax",
+  "arm": "Bp",
+  "run": 1,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 1.3040660000000002
+}

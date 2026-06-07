@@ -1,0 +1,11 @@
+{
+  "feature": "f2_health_routes",
+  "engine": "codex55xhigh",
+  "arm": "Bp",
+  "run": 1,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": null
+}

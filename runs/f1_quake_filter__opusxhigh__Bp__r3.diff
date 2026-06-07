@@ -1,0 +1,51 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..f3fcab6 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,8 +7,21 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: Request) {
+   try {
++    // Optional magnitude filter. Invalid values (non-numeric, empty, negative)
++    // are ignored so the route never 500s — it just returns the full set.
++    const { searchParams } = new URL(request.url);
++    const minMagnitudeRaw = searchParams.get('minMagnitude');
++    const parsedMinMagnitude =
++      minMagnitudeRaw !== null && minMagnitudeRaw.trim() !== ''
++        ? Number(minMagnitudeRaw)
++        : NaN;
++    const minMagnitude =
++      Number.isFinite(parsedMinMagnitude) && parsedMinMagnitude >= 0
++        ? parsedMinMagnitude
++        : null;
++
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -21,7 +34,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    const allEarthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,6 +53,14 @@ export async function GET() {
+       };
+     });
+ 
++    const earthquakes =
++      minMagnitude !== null
++        ? allEarthquakes.filter(
++            (q: { magnitude: number | null }) =>
++              typeof q.magnitude === 'number' && q.magnitude >= minMagnitude
++          )
++        : allEarthquakes;
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,

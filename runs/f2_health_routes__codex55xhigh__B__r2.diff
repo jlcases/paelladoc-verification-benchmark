@@ -1,0 +1,158 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..67f5319 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,132 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { readdir, readFile } from 'node:fs/promises';
++import path from 'node:path';
++import { NextResponse } from 'next/server';
++
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++const ROUTE_FILE_PATTERN = /^route\.(?:js|jsx|ts|tsx)$/;
++const APP_PATH_ROUTES_MANIFEST = path.join(process.cwd(), '.next', 'app-path-routes-manifest.json');
++const APP_PATHS_MANIFEST = path.join(process.cwd(), '.next', 'server', 'app-paths-manifest.json');
++const SOURCE_APP_DIRECTORIES = [
++  path.join(process.cwd(), 'src', 'app'),
++  path.join(process.cwd(), 'app'),
++];
++
++type ManifestRecord = Record<string, unknown>;
++
++function isManifestRecord(value: unknown): value is ManifestRecord {
++  return value !== null && typeof value === 'object' && !Array.isArray(value);
++}
++
++function isRouteGroup(segment: string) {
++  return segment.startsWith('(') && segment.endsWith(')');
++}
++
++function isApiEndpoint(endpoint: string) {
++  return endpoint === '/api' || endpoint.startsWith('/api/');
++}
++
++function toEndpoint(appPath: string) {
++  const withoutRouteSuffix = appPath.endsWith('/route') ? appPath.slice(0, -'/route'.length) : appPath;
++  const segments = withoutRouteSuffix
++    .split('/')
++    .filter(Boolean)
++    .filter((segment) => !isRouteGroup(segment) && !segment.startsWith('@'));
++
++  const endpoint = `/${segments.join('/')}`;
++  return isApiEndpoint(endpoint) ? endpoint : null;
++}
++
++function uniqueSorted(endpoints: string[]) {
++  return Array.from(new Set(endpoints)).sort((a, b) => a.localeCompare(b));
++}
++
++async function readJsonRecord(filePath: string) {
++  try {
++    const raw = await readFile(filePath, 'utf8');
++    const parsed: unknown = JSON.parse(raw);
++    return isManifestRecord(parsed) ? parsed : null;
++  } catch {
++    return null;
++  }
++}
++
++async function discoverApiEndpointsFromManifest() {
++  const appPathRoutes = await readJsonRecord(APP_PATH_ROUTES_MANIFEST);
++  if (appPathRoutes) {
++    return uniqueSorted(
++      Object.values(appPathRoutes).filter((route): route is string => (
++        typeof route === 'string' && isApiEndpoint(route)
++      )),
++    );
++  }
++
++  const appPaths = await readJsonRecord(APP_PATHS_MANIFEST);
++  if (!appPaths) {
++    return [];
++  }
++
++  return uniqueSorted(
++    Object.keys(appPaths)
++      .filter((appPath) => appPath.endsWith('/route'))
++      .map(toEndpoint)
++      .filter((endpoint): endpoint is string => endpoint !== null),
++  );
++}
++
++async function discoverApiEndpointsFromSource(
++  directory: string,
++  appPath = '',
++): Promise<string[]> {
++  try {
++    const entries = await readdir(directory, { withFileTypes: true });
++    const nestedEndpoints = await Promise.all(entries.map(async (entry) => {
++      const entryPath = path.join(directory, entry.name);
++
++      if (entry.isFile() && ROUTE_FILE_PATTERN.test(entry.name)) {
++        const endpoint = toEndpoint(`${appPath}/route`);
++        return endpoint ? [endpoint] : [];
++      }
++
++      if (!entry.isDirectory() || entry.name.startsWith('_')) {
++        return [];
++      }
++
++      const nextAppPath = isRouteGroup(entry.name) || entry.name.startsWith('@')
++        ? appPath
++        : `${appPath}/${entry.name}`;
++
++      return discoverApiEndpointsFromSource(entryPath, nextAppPath);
++    }));
++
++    return uniqueSorted(nestedEndpoints.flat());
++  } catch {
++    return [];
++  }
++}
++
++async function discoverApiEndpoints() {
++  const sourceEndpointGroups = await Promise.all(
++    SOURCE_APP_DIRECTORIES.map((directory) => discoverApiEndpointsFromSource(directory)),
++  );
++  const sourceEndpoints = uniqueSorted(sourceEndpointGroups.flat());
++  if (sourceEndpoints.length > 0) {
++    return sourceEndpoints;
++  }
++
++  return discoverApiEndpointsFromManifest();
++}
++
++export async function GET() {
++  const endpoints = await discoverApiEndpoints();
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

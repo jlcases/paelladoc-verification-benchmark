@@ -1,0 +1,120 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..535922a 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,19 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { discoverApiRoutes } from '@/lib/api-routes';
++
++// Always evaluated at request time so the route list reflects reality.
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++export async function GET() {
++  const endpoints = await discoverApiRoutes();
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}
+diff --git a/src/lib/api-routes.ts b/src/lib/api-routes.ts
+new file mode 100644
+index 0000000..2f2f506
+--- /dev/null
++++ b/src/lib/api-routes.ts
+@@ -0,0 +1,69 @@
++import { promises as fs } from 'node:fs';
++import path from 'node:path';
++
++/**
++ * Discovers the platform's real API routes by walking the App Router tree at
++ * request time, so the /api/health manifest never goes stale when routes are
++ * added or removed.
++ *
++ * A directory is an API route only when it directly contains a `route` file
++ * (`route.ts`/`route.js`/...). Helper modules that live alongside a route
++ * (e.g. `src/app/api/cctv/spain.ts`) are intentionally ignored.
++ */
++
++// Matches Next.js route handler files: route.ts | route.tsx | route.js | route.jsx
++const ROUTE_FILE = /^route\.(?:t|j)sx?$/;
++
++function segmentsToRoutePath(segments: string[]): string {
++  // Route groups like `(marketing)` exist on disk but are stripped from the URL.
++  const cleaned = segments.filter((s) => !(s.startsWith('(') && s.endsWith(')')));
++  return '/api' + (cleaned.length ? '/' + cleaned.join('/') : '');
++}
++
++async function collect(dir: string, segments: string[], out: Set<string>): Promise<void> {
++  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => null);
++  if (!entries) return;
++
++  if (entries.some((e) => e.isFile() && ROUTE_FILE.test(e.name))) {
++    out.add(segmentsToRoutePath(segments));
++  }
++
++  await Promise.all(
++    entries
++      .filter(
++        (e) =>
++          e.isDirectory() &&
++          // Skip private folders (`_foo`) and parallel-route slots (`@foo`):
++          // neither contributes a routable URL segment.
++          !e.name.startsWith('_') &&
++          !e.name.startsWith('@'),
++      )
++      .map((e) => collect(path.join(dir, e.name), [...segments, e.name], out)),
++  );
++}
++
++/**
++ * Returns the sorted list of `/api/...` routes the server actually exposes.
++ *
++ * Resolves against the source tree in dev / `next start`, and falls back to the
++ * compiled output tree so it still works in a `output: 'standalone'` bundle
++ * where the original sources are not traced into the deployment.
++ */
++export async function discoverApiRoutes(): Promise<string[]> {
++  const cwd = process.cwd();
++  const candidates = [
++    path.join(cwd, 'src', 'app', 'api'),
++    path.join(cwd, 'app', 'api'),
++    path.join(cwd, '.next', 'server', 'app', 'api'),
++  ];
++
++  for (const base of candidates) {
++    const out = new Set<string>();
++    await collect(base, [], out);
++    if (out.size > 0) {
++      return [...out].sort();
++    }
++  }
++
++  return [];
++}

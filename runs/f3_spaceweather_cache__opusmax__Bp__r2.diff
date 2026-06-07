@@ -1,0 +1,273 @@
+diff --git a/src/app/api/space-weather/route.ts b/src/app/api/space-weather/route.ts
+index 03b9f6b..8a56b8b 100644
+--- a/src/app/api/space-weather/route.ts
++++ b/src/app/api/space-weather/route.ts
+@@ -1,87 +1,181 @@
+-
+-import { NextResponse } from 'next/server';
+-
+-/**
+- * OSIRIS — Space Weather API
+- * Fetches real-time solar activity from NOAA Space Weather Prediction Center
+- * FREE — No API key required
+- * Data: Kp index (geomagnetic), solar flares, CME alerts
+- */
+-
+-export async function GET() {
+-  try {
+-    const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
+-      fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
+-        signal: AbortSignal.timeout(8000),
+-      }).then(r => r.json()),
+-      fetch('https://services.swpc.noaa.gov/json/alerts.json', {
+-        signal: AbortSignal.timeout(8000),
+-      }).then(r => r.json()),
+-      fetch('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json', {
+-        signal: AbortSignal.timeout(8000),
+-      }).then(r => r.json()),
+-    ]);
+-
+-    // Latest Kp index (geomagnetic storm indicator)
+-    let kpIndex = 0;
+-    let kpTimestamp = '';
+-    if (kpRes.status === 'fulfilled' && Array.isArray(kpRes.value) && kpRes.value.length > 0) {
+-      const latest = kpRes.value[kpRes.value.length - 1];
+-      kpIndex = parseFloat(latest.kp_index || latest.Kp || 0);
+-      kpTimestamp = latest.time_tag || '';
+-    }
+-
+-    // Storm level from Kp
+-    let stormLevel = 'Quiet';
+-    let stormColor = '#00E676';
+-    if (kpIndex >= 8) { stormLevel = 'Extreme (G5)'; stormColor = '#FF1744'; }
+-    else if (kpIndex >= 7) { stormLevel = 'Severe (G4)'; stormColor = '#FF3D3D'; }
+-    else if (kpIndex >= 6) { stormLevel = 'Strong (G3)'; stormColor = '#FF9500'; }
+-    else if (kpIndex >= 5) { stormLevel = 'Moderate (G2)'; stormColor = '#FFD700'; }
+-    else if (kpIndex >= 4) { stormLevel = 'Minor (G1)'; stormColor = '#FFD700'; }
+-    else if (kpIndex >= 3) { stormLevel = 'Unsettled'; stormColor = '#D4AF37'; }
+-
+-    // Recent alerts
+-    const alerts: any[] = [];
+-    if (alertsRes.status === 'fulfilled' && Array.isArray(alertsRes.value)) {
+-      for (const alert of alertsRes.value.slice(0, 10)) {
+-        alerts.push({
+-          id: alert.product_id || `alert-${Date.now()}`,
+-          issue_datetime: alert.issue_datetime,
+-          message: (alert.message || '').substring(0, 200),
+-        });
+-      }
+-    }
+-
+-    // Recent solar flares
+-    const flares: any[] = [];
+-    if (flareRes.status === 'fulfilled' && Array.isArray(flareRes.value)) {
+-      for (const flare of flareRes.value.slice(0, 5)) {
+-        if (!flare.max_class) continue;
+-        flares.push({
+-          class: flare.max_class,
+-          begin: flare.begin_time,
+-          peak: flare.max_time,
+-          end: flare.end_time,
+-        });
+-      }
+-    }
+-
+-    return NextResponse.json({
+-      kp_index: kpIndex,
+-      storm_level: stormLevel,
+-      storm_color: stormColor,
+-      kp_timestamp: kpTimestamp,
+-      alerts,
+-      solar_flares: flares,
+-      timestamp: new Date().toISOString(),
+-    });
+-  } catch (error) {
+-    console.error('Space Weather API error:', error);
+-    return NextResponse.json({
+-      kp_index: 0, storm_level: 'Unknown', storm_color: '#555',
+-      alerts: [], solar_flares: [], error: 'Failed to fetch space weather data',
+-    }, { status: 500 });
+-  }
+-}
+-
++
++import { NextResponse } from 'next/server';
++
++/**
++ * OSIRIS — Space Weather API
++ * Fetches real-time solar activity from NOAA Space Weather Prediction Center
++ * FREE — No API key required
++ * Data: Kp index (geomagnetic), solar flares, CME alerts
++ *
++ * NOAA is hit at most once per TTL window: the computed payload is held in a
++ * short-lived in-memory cache, so bursts of requests are served locally and
++ * upstream call volume is bounded to ~1 fetch set per minute per instance.
++ */
++
++// Short server-side cache window. NOAA's Kp / alert / flare feeds refresh on
++// the order of minutes, so a ~60s TTL slashes upstream calls without serving
++// meaningfully stale data. Keep CACHE_CONTROL in lock-step with the TTL.
++const CACHE_TTL_SECONDS = 60;
++const CACHE_TTL_MS = CACHE_TTL_SECONDS * 1000;
++const CACHE_CONTROL = `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}, stale-while-revalidate=${CACHE_TTL_SECONDS}`;
++
++type SpaceWeatherAlert = {
++  id: string;
++  issue_datetime?: string;
++  message: string;
++};
++
++type SolarFlare = {
++  class: string;
++  begin?: string;
++  peak?: string;
++  end?: string;
++};
++
++type SpaceWeatherPayload = {
++  kp_index: number;
++  storm_level: string;
++  storm_color: string;
++  kp_timestamp: string;
++  alerts: SpaceWeatherAlert[];
++  solar_flares: SolarFlare[];
++  timestamp: string;
++};
++
++// Module-level cache. Module state persists across requests for the lifetime of
++// the server instance, which is exactly the dedup scope we want. `expiresAt` is
++// an absolute epoch-ms deadline.
++let cacheEntry: { payload: SpaceWeatherPayload; expiresAt: number } | null = null;
++
++function cachedJson(payload: SpaceWeatherPayload) {
++  return NextResponse.json(payload, {
++    headers: { 'Cache-Control': CACHE_CONTROL },
++  });
++}
++
++export async function GET() {
++  const now = Date.now();
++
++  // 1. Fresh cache hit: serve the stored payload and issue NO NOAA fetches.
++  if (cacheEntry && now < cacheEntry.expiresAt) {
++    return cachedJson(cacheEntry.payload);
++  }
++
++  try {
++    // 2. Cache empty or expired: refetch from NOAA and recompute.
++    const { payload, ok } = await fetchSpaceWeather();
++
++    // 3. Only cache a meaningful response, so a transient NOAA outage can't pin
++    //    a degraded payload for the whole TTL window.
++    if (ok) {
++      cacheEntry = { payload, expiresAt: now + CACHE_TTL_MS };
++      return cachedJson(payload);
++    }
++
++    // Upstream returned nothing usable. Prefer the last good payload (now
++    // stale) over an empty one; otherwise surface the degraded payload as the
++    // original route did (200, not an error). Either way it is a 2xx response,
++    // so it still advertises the cache contract — but note we did NOT store the
++    // degraded payload above, so the next request keeps retrying NOAA.
++    return cachedJson(cacheEntry ? cacheEntry.payload : payload);
++  } catch (error) {
++    console.error('Space Weather API error:', error);
++
++    // Last-resort resilience: serve the last good payload if we have one,
++    // otherwise fall back to the original degraded error response.
++    if (cacheEntry) {
++      return cachedJson(cacheEntry.payload);
++    }
++    return NextResponse.json({
++      kp_index: 0, storm_level: 'Unknown', storm_color: '#555',
++      alerts: [], solar_flares: [], error: 'Failed to fetch space weather data',
++    }, { status: 500 });
++  }
++}
++
++/**
++ * Performs the actual NOAA fetches and normalizes them into the payload.
++ * `ok` is true when at least one upstream feed responded, mirroring the
++ * resilience model: individual feed failures degrade gracefully and never
++ * throw (Promise.allSettled), and a usable result is worth caching.
++ */
++async function fetchSpaceWeather(): Promise<{ payload: SpaceWeatherPayload; ok: boolean }> {
++  const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
++    fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
++      signal: AbortSignal.timeout(8000),
++      cache: 'no-store',
++    }).then(r => r.json()),
++    fetch('https://services.swpc.noaa.gov/json/alerts.json', {
++      signal: AbortSignal.timeout(8000),
++      cache: 'no-store',
++    }).then(r => r.json()),
++    fetch('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json', {
++      signal: AbortSignal.timeout(8000),
++      cache: 'no-store',
++    }).then(r => r.json()),
++  ]);
++
++  // At least one feed has to respond for the payload to be worth caching.
++  const ok =
++    kpRes.status === 'fulfilled' ||
++    alertsRes.status === 'fulfilled' ||
++    flareRes.status === 'fulfilled';
++
++  // Latest Kp index (geomagnetic storm indicator)
++  let kpIndex = 0;
++  let kpTimestamp = '';
++  if (kpRes.status === 'fulfilled' && Array.isArray(kpRes.value) && kpRes.value.length > 0) {
++    const latest = kpRes.value[kpRes.value.length - 1];
++    kpIndex = parseFloat(latest.kp_index || latest.Kp || 0);
++    kpTimestamp = latest.time_tag || '';
++  }
++
++  // Storm level from Kp
++  let stormLevel = 'Quiet';
++  let stormColor = '#00E676';
++  if (kpIndex >= 8) { stormLevel = 'Extreme (G5)'; stormColor = '#FF1744'; }
++  else if (kpIndex >= 7) { stormLevel = 'Severe (G4)'; stormColor = '#FF3D3D'; }
++  else if (kpIndex >= 6) { stormLevel = 'Strong (G3)'; stormColor = '#FF9500'; }
++  else if (kpIndex >= 5) { stormLevel = 'Moderate (G2)'; stormColor = '#FFD700'; }
++  else if (kpIndex >= 4) { stormLevel = 'Minor (G1)'; stormColor = '#FFD700'; }
++  else if (kpIndex >= 3) { stormLevel = 'Unsettled'; stormColor = '#D4AF37'; }
++
++  // Recent alerts
++  const alerts: SpaceWeatherAlert[] = [];
++  if (alertsRes.status === 'fulfilled' && Array.isArray(alertsRes.value)) {
++    for (const alert of alertsRes.value.slice(0, 10)) {
++      alerts.push({
++        id: alert.product_id || `alert-${Date.now()}`,
++        issue_datetime: alert.issue_datetime,
++        message: (alert.message || '').substring(0, 200),
++      });
++    }
++  }
++
++  // Recent solar flares
++  const flares: SolarFlare[] = [];
++  if (flareRes.status === 'fulfilled' && Array.isArray(flareRes.value)) {
++    for (const flare of flareRes.value.slice(0, 5)) {
++      if (!flare.max_class) continue;
++      flares.push({
++        class: flare.max_class,
++        begin: flare.begin_time,
++        peak: flare.max_time,
++        end: flare.end_time,
++      });
++    }
++  }
++
++  return {
++    ok,
++    payload: {
++      kp_index: kpIndex,
++      storm_level: stormLevel,
++      storm_color: stormColor,
++      kp_timestamp: kpTimestamp,
++      alerts,
++      solar_flares: flares,
++      timestamp: new Date().toISOString(),
++    },
++  };
++}

@@ -1,0 +1,11 @@
+{
+  "feature": "f5_quake_pagination",
+  "engine": "opusmax",
+  "arm": "B",
+  "run": 2,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 1.24089275
+}

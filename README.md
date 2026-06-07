@@ -7,7 +7,7 @@ across 4 models, every cell run 3 times.
 This is **tool-agnostic**. No product is in the arms. It tests a principle, not a vendor.
 
 - **Method (read this first):** [`PROTOCOL.md`](./PROTOCOL.md) — pre-registered before the runs.
-- **Results:** [`RESULTS.md`](./RESULTS.md) — *pending until the 120 runs are scored.*
+- **Results:** [`RESULTS.md`](./RESULTS.md) — 120 pre-registered runs (raw 40% genuine bugs, spec 0%) plus a labeled frontier extension (Opus 4.8 at xhigh/max, Codex 5.5 at xhigh): even Opus 4.8 at max effort ships a genuine bug in 13% of raw runs, 2 of 3 on the hard feature, non-deterministically; the spec takes every config to 0%.
 - **Every run:** [`runs/`](./runs/) — all diffs + per-run verdicts.
 
 ## The one-paragraph version

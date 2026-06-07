@@ -1,0 +1,46 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..31f4e3e 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,8 +7,16 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: Request) {
+   try {
++    const { searchParams } = new URL(request.url);
++    const limitParam = searchParams.get('limit');
++    const parsedLimit = limitParam !== null ? Number(limitParam) : NaN;
++    // Apply the cap only when limit is a valid, positive number.
++    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
++      ? Math.floor(parsedLimit)
++      : null;
++
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -21,7 +29,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    let earthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,6 +48,14 @@ export async function GET() {
+       };
+     });
+ 
++    // When a limit is applied, keep the strongest (highest magnitude) events first.
++    if (limit !== null) {
++      earthquakes = earthquakes
++        .slice()
++        .sort((a: any, b: any) => (b.magnitude ?? -Infinity) - (a.magnitude ?? -Infinity))
++        .slice(0, limit);
++    }
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,

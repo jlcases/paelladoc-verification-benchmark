@@ -1,0 +1,11 @@
+{
+  "feature": "f4_news_filter",
+  "engine": "opusxhigh",
+  "arm": "B",
+  "run": 1,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 0.7369079999999999
+}

@@ -1,0 +1,119 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..292f59f 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,93 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir, readFile } from 'node:fs/promises';
++import { join } from 'node:path';
++
++/**
++ * OSIRIS — Health / Status API
++ *
++ * Reports platform liveness plus the *live* list of available API routes.
++ *
++ * The endpoint list used to be hardcoded and drifted out of sync with reality.
++ * It is now derived at request time so it can never go stale:
++ *   - In production (including `output: 'standalone'`, where the original `src/`
++ *     tree is not shipped) it reads Next's own `app-paths-manifest.json`, the
++ *     source of truth emitted next to the server bundle.
++ *   - During `next dev` that manifest is compiled on demand and can be partial,
++ *     so we also walk the App Router source tree and merge the two results.
++ */
++
++// Always evaluate at request time — never serve a frozen, prerendered snapshot.
++export const dynamic = 'force-dynamic';
++// Route discovery uses the Node filesystem APIs.
++export const runtime = 'nodejs';
++
++const API_PREFIX = '/api';
++const ROUTE_SUFFIX = '/route';
++const ROUTE_FILE = /^route\.(ts|tsx|js|jsx)$/;
++
++/** Routes Next.js compiled into the build manifest (authoritative in production). */
++async function routesFromManifest(): Promise<string[]> {
++  try {
++    const manifestPath = join(process.cwd(), '.next', 'server', 'app-paths-manifest.json');
++    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, string>;
++    return Object.keys(manifest)
++      .filter((key) => key.startsWith(`${API_PREFIX}/`) && key.endsWith(ROUTE_SUFFIX))
++      .map((key) => key.slice(0, -ROUTE_SUFFIX.length));
++  } catch {
++    // Manifest missing/unreadable (e.g. very early in dev) — fall back to source.
++    return [];
++  }
++}
++
++/** Routes discovered by walking the App Router source (fills gaps during dev). */
++async function routesFromSource(): Promise<string[]> {
++  const candidates = [
++    join(process.cwd(), 'src', 'app', 'api'),
++    join(process.cwd(), 'app', 'api'),
++  ];
++  for (const base of candidates) {
++    try {
++      return await walkRoutes(base, API_PREFIX);
++    } catch {
++      // Not this layout (or source not shipped) — try the next candidate.
++    }
++  }
++  return [];
++}
++
++async function walkRoutes(dir: string, routePath: string): Promise<string[]> {
++  const entries = await readdir(dir, { withFileTypes: true });
++  const routes: string[] = [];
++
++  for (const entry of entries) {
++    if (entry.isDirectory()) {
++      const name = entry.name;
++      // Skip private (`_foo`), parallel-route (`@slot`) and hidden folders.
++      if (name.startsWith('_') || name.startsWith('@') || name.startsWith('.')) continue;
++      // Route groups `(group)` contribute no URL segment.
++      const segment = /^\(.+\)$/.test(name) ? '' : `/${name}`;
++      routes.push(...(await walkRoutes(join(dir, name), `${routePath}${segment}`)));
++    } else if (ROUTE_FILE.test(entry.name)) {
++      routes.push(routePath);
++    }
++  }
++
++  return routes;
++}
++
++export async function GET() {
++  const [fromManifest, fromSource] = await Promise.all([
++    routesFromManifest(),
++    routesFromSource(),
++  ]);
++  const endpoints = [...new Set([...fromManifest, ...fromSource])].sort();
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

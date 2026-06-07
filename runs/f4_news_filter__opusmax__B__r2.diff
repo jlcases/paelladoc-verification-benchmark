@@ -1,0 +1,45 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..11840f2 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -38,11 +38,37 @@ const LIVE_FEEDS = [
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+ ];
+ 
+-export async function GET() {
++/**
++ * Parse a `?key=a,b,c` query value into a normalized list of filter terms,
++ * or null when the param is absent/empty. `transform` canonicalizes each term
++ * so matching is case-insensitive (countries → upper, categories → lower).
++ */
++function parseFilter(value: string | null, transform: (s: string) => string): string[] | null {
++  if (!value) return null;
++  const terms = value.split(',').map((v) => transform(v.trim())).filter(Boolean);
++  return terms.length > 0 ? terms : null;
++}
++
++export async function GET(request: Request) {
++  const { searchParams } = new URL(request.url);
++
++  // Optional filters from the query string. Each accepts a single value or a
++  // comma-separated list (e.g. ?country=US,CA&category=mainstream,finance) and
++  // is matched case-insensitively. When both are present a feed must match
++  // both to be included.
++  const countries = parseFilter(searchParams.get('country'), (s) => s.toUpperCase());
++  const categories = parseFilter(searchParams.get('category'), (s) => s.toLowerCase());
++
++  const feeds = LIVE_FEEDS.filter((feed) =>
++    (!countries || countries.includes(feed.country)) &&
++    (!categories || categories.includes(feed.category))
++  );
++
+   return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
++    feeds,
++    total: feeds.length,
+     categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
++    filters: { country: countries, category: categories },
+     timestamp: new Date().toISOString(),
+   }, {
+     headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=172800' },

@@ -1,0 +1,42 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..d296081 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,13 +1,17 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Optional query param:
++ *   ?limit=N — caps how many earthquakes are returned (N >= 0). Invalid or
++ *              missing values return the full feed.
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -21,7 +25,16 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    // Optional `?limit=N` lets the client cap how many results it loads.
++    // Parse defensively: ignore missing/invalid values and return the full feed.
++    const limitParam = request.nextUrl.searchParams.get('limit');
++    const limit = limitParam !== null ? Number.parseInt(limitParam, 10) : null;
++    const limited =
++      limit !== null && Number.isFinite(limit) && limit >= 0
++        ? features.slice(0, limit)
++        : features;
++
++    const earthquakes = limited.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {

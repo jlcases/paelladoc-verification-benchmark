@@ -1,0 +1,65 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..f891298 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -1,5 +1,5 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse } from 'next/server';
+ 
+ /**
+  * OSIRIS — Live News Feeds v3
+@@ -10,7 +10,9 @@ import { NextResponse } from 'next/server';
+  * Channels that show "Video unavailable" or refuse iframe are marked false.
+  */
+ 
+-const LIVE_FEEDS = [
++const CATEGORIES = ['mainstream', 'government', 'finance', 'conflict', 'state'];
++
++const LIVE_FEEDS = [
+   // ── North America (external only — open in YouTube) ──
+   { id: 'nbcnews',   name: 'NBC News NOW',  city: 'New York',      country: 'US', lat: 40.759, lng: -73.980, url: 'https://www.youtube.com/channel/UCeY0bbntWzzVIaj2z3QigXg/live', embed_allowed: false, category: 'mainstream', language: 'en' },
+   { id: 'cbsnews',   name: 'CBS News 24/7', city: 'New York',      country: 'US', lat: 40.764, lng: -73.973, url: 'https://www.youtube.com/channel/UC8p1vwvWtl6T73JiExfWs1g/live', embed_allowed: false, category: 'mainstream', language: 'en' },
+@@ -36,15 +38,33 @@ const LIVE_FEEDS = [
+ 
+   // ── State media (external only) ──
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+-];
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
+-    categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
+-    timestamp: new Date().toISOString(),
+-  }, {
++];
++
++function getFilterValues(searchParams: URLSearchParams, key: string): string[] {
++  return searchParams
++    .getAll(key)
++    .flatMap(value => value.split(','))
++    .map(value => value.trim().toLowerCase())
++    .filter(Boolean);
++}
++
++export async function GET(request: Request) {
++  const searchParams = new URL(request.url).searchParams;
++  const countries = getFilterValues(searchParams, 'country');
++  const categories = getFilterValues(searchParams, 'category');
++
++  const feeds = LIVE_FEEDS.filter(feed => {
++    const matchesCountry = countries.length === 0 || countries.includes(feed.country.toLowerCase());
++    const matchesCategory = categories.length === 0 || categories.includes(feed.category.toLowerCase());
++    return matchesCountry && matchesCategory;
++  });
++
++  return NextResponse.json({
++    feeds,
++    total: feeds.length,
++    categories: CATEGORIES,
++    timestamp: new Date().toISOString(),
++  }, {
+     headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=172800' },
+   });
+ }

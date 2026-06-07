@@ -1,0 +1,42 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..93dac27 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -4,10 +4,17 @@ import { NextResponse } from 'next/server';
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
++ * Optional ?minMagnitude=<n> query param hides quakes below the given magnitude
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: Request) {
++  // Optional magnitude filter — lets the map hide small quakes (e.g. ?minMagnitude=4.5).
++  // Falls back to 0 (no filtering) when the param is absent, invalid, or non-positive.
++  const { searchParams } = new URL(request.url);
++  const requestedMag = parseFloat(searchParams.get('minMagnitude') || '0');
++  const minMagnitude = Number.isFinite(requestedMag) && requestedMag > 0 ? requestedMag : 0;
++
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,9 +47,16 @@ export async function GET() {
+       };
+     });
+ 
++    // Apply the magnitude filter only when a positive threshold is requested. Quakes with
++    // an unknown magnitude are dropped when filtering since we can't confirm their size.
++    const filtered = minMagnitude > 0
++      ? earthquakes.filter((eq: any) => typeof eq.magnitude === 'number' && eq.magnitude >= minMagnitude)
++      : earthquakes;
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: filtered,
++      total: filtered.length,
++      minMagnitude,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

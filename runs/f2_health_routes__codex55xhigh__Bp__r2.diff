@@ -1,0 +1,84 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..e39243f 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,58 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'node:fs/promises';
++import path from 'node:path';
++
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++const API_ROUTE_DIR = path.join(process.cwd(), 'src', 'app', 'api');
++const ROUTE_FILE_PATTERN = /^route\.(?:js|jsx|ts|tsx|mjs|cjs)$/;
++
++async function discoverApiEndpoints(
++  currentDir = API_ROUTE_DIR,
++  segments: string[] = []
++): Promise<string[]> {
++  const entries = await readdir(currentDir, { withFileTypes: true });
++  const endpoints: string[] = [];
++
++  if (entries.some((entry) => entry.isFile() && ROUTE_FILE_PATTERN.test(entry.name))) {
++    endpoints.push(`/api/${segments.join('/')}`.replace(/\/$/, ''));
++  }
++
++  for (const entry of entries) {
++    if (!entry.isDirectory()) {
++      continue;
++    }
++
++    endpoints.push(
++      ...(await discoverApiEndpoints(path.join(currentDir, entry.name), [
++        ...segments,
++        entry.name,
++      ]))
++    );
++  }
++
++  return endpoints;
++}
++
++async function getApiEndpoints(): Promise<string[]> {
++  try {
++    return (await discoverApiEndpoints())
++      .filter((endpoint) => endpoint.startsWith('/api/'))
++      .sort((a, b) => a.localeCompare(b));
++  } catch (error) {
++    console.error('Failed to discover API endpoints', error);
++    return [];
++  }
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints: await getApiEndpoints(),
++  });
++}

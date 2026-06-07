@@ -1,0 +1,97 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..9f578db 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,71 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'node:fs/promises';
++import path from 'node:path';
++
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++const apiRoutesRoot = path.join(process.cwd(), 'src', 'app', 'api');
++const routeFileNames = new Set(['route.ts', 'route.js']);
++
++function apiPathForSegments(segments: string[]) {
++  return `/api/${segments.join('/')}`;
++}
++
++async function scanApiRoutes(directory: string, segments: string[] = []): Promise<string[]> {
++  const entries = await readdir(directory, { withFileTypes: true });
++  const endpoints: string[] = [];
++  let hasRouteFile = false;
++
++  for (const entry of entries) {
++    if (entry.isFile() && routeFileNames.has(entry.name)) {
++      hasRouteFile = true;
++      continue;
++    }
++
++    if (entry.isDirectory() && !entry.name.startsWith('_')) {
++      const nextSegments = entry.name.startsWith('(') && entry.name.endsWith(')')
++        ? segments
++        : [...segments, entry.name];
++
++      endpoints.push(...await scanApiRoutes(path.join(directory, entry.name), nextSegments));
++    }
++  }
++
++  if (hasRouteFile) {
++    endpoints.push(apiPathForSegments(segments));
++  }
++
++  return endpoints;
++}
++
++async function getApiEndpoints() {
++  try {
++    return (await scanApiRoutes(apiRoutesRoot))
++      .filter((endpoint) => endpoint.startsWith('/api/'))
++      .sort();
++  } catch {
++    return [];
++  }
++}
++
++function getUptimeSeconds() {
++  try {
++    return typeof process.uptime === 'function' ? Math.round(process.uptime()) : 0;
++  } catch {
++    return 0;
++  }
++}
++
++export async function GET() {
++  const endpoints = await getApiEndpoints();
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: getUptimeSeconds(),
++    timestamp: new Date().toISOString(),
++    endpoints,
++  }, { status: 200 });
++}

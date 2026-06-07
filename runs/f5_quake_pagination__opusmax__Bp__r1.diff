@@ -1,0 +1,51 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..37abc24 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,13 +1,17 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   limit — optional positive integer; caps the response to the strongest
++ *           (highest magnitude) events first. Ignored when absent or invalid.
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -21,7 +25,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    const allEarthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,6 +44,17 @@ export async function GET() {
+       };
+     });
+ 
++    // Optional `limit`: cap the response to the strongest events first.
++    // Absent, non-numeric, or non-positive values fall through to "return all".
++    const limitParam = request.nextUrl.searchParams.get('limit');
++    const limit = Number(limitParam);
++    const earthquakes =
++      limitParam !== null && Number.isFinite(limit) && limit > 0
++        ? [...allEarthquakes]
++            .sort((a, b) => (b.magnitude ?? -Infinity) - (a.magnitude ?? -Infinity))
++            .slice(0, Math.floor(limit))
++        : allEarthquakes;
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,

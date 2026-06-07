@@ -1,0 +1,54 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..f96c8c1 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -5,9 +5,20 @@ import { NextResponse } from 'next/server';
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   minMagnitude — optional inclusive lower bound. Quakes below this magnitude
++ *                  (and any with an unknown magnitude) are filtered out so the
++ *                  map can hide small quakes. Non-numeric or <= 0 values are
++ *                  ignored and the full feed is returned.
+  */
+ 
+-export async function GET() {
++export async function GET(request: Request) {
++  // Parse the optional magnitude floor from the query string.
++  const { searchParams } = new URL(request.url);
++  const parsedMin = parseFloat(searchParams.get('minMagnitude') ?? '');
++  const minMagnitude = Number.isFinite(parsedMin) && parsedMin > 0 ? parsedMin : null;
++
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -21,7 +32,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    let earthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,9 +51,18 @@ export async function GET() {
+       };
+     });
+ 
++    // Magnitude filter — drop quakes below the requested floor. Events with an
++    // unknown magnitude can't be confirmed above the threshold, so they go too.
++    if (minMagnitude !== null) {
++      earthquakes = earthquakes.filter(
++        (eq: any) => typeof eq.magnitude === 'number' && eq.magnitude >= minMagnitude,
++      );
++    }
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,
++      minMagnitude,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

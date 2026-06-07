@@ -1,0 +1,52 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..00ea92c 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,14 +1,23 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   limit — optional positive integer capping how many events are returned
++ *           (e.g. /api/earthquakes?limit=50). Omitted/invalid values return all.
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
++    // Optional client-side cap on the number of returned events.
++    const limitParam = request.nextUrl.searchParams.get('limit');
++    const parsedLimit = limitParam !== null ? Number.parseInt(limitParam, 10) : NaN;
++    const limit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? parsedLimit : null;
++
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -21,7 +30,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    const allEarthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,9 +49,12 @@ export async function GET() {
+       };
+     });
+ 
++    const earthquakes = limit !== null ? allEarthquakes.slice(0, limit) : allEarthquakes;
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,
++      available: allEarthquakes.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

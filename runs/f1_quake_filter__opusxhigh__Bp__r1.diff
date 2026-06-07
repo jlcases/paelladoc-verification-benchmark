@@ -1,0 +1,50 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..133f68e 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,5 +1,5 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -21,7 +21,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    const allEarthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,6 +40,20 @@ export async function GET() {
+       };
+     });
+ 
++    // Optional magnitude filter. Only applied when minMagnitude is a valid,
++    // non-negative number; otherwise the full unfiltered set is returned.
++    let earthquakes = allEarthquakes;
++    const rawMin = request.nextUrl.searchParams.get('minMagnitude');
++    if (rawMin !== null && rawMin.trim() !== '') {
++      const minMagnitude = Number(rawMin);
++      if (Number.isFinite(minMagnitude) && minMagnitude >= 0) {
++        earthquakes = allEarthquakes.filter(
++          (q: { magnitude: unknown }) =>
++            typeof q.magnitude === 'number' && q.magnitude >= minMagnitude
++        );
++      }
++    }
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,

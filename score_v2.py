@@ -139,7 +139,17 @@ def main() -> None:
 def _report(rows: list[dict]) -> None:
     scorable = [r for r in rows if r["genuine_bug"] is not None]
     arms = ["B", "Bp"]
-    engines = ["claude", "haiku", "codex", "kimi"]
+    CORE = ["claude", "haiku", "codex", "kimi"]
+    EXT = ["opusxhigh", "opusmax", "codex55xhigh"]
+    LABEL = {
+        "claude": "Claude Sonnet 4.6", "haiku": "Claude Haiku 4.5",
+        "codex": "Codex (CLI default)", "kimi": "Kimi",
+        "opusxhigh": "Claude Opus 4.8 · xhigh", "opusmax": "Claude Opus 4.8 · max",
+        "codex55xhigh": "Codex 5.5 · xhigh",
+    }
+    core = [r for r in scorable if r["engine"] in CORE]
+    ext_present = [e for e in EXT if any(r["engine"] == e for r in scorable)]
+
     out = ["# v2 Results — genuine-bug rate by execution (independent blind scoring)", "",
            f"Scored runs: {len(scorable)} (of {len(rows)} diffs; non-scorable = "
            f"{len(rows) - len(scorable)} apply/exec errors).",
@@ -148,32 +158,53 @@ def _report(rows: list[dict]) -> None:
            "Intervals are 95% Wilson. **A green build does not count** — correctness is "
            "execution against the criteria.", ""]
 
-    # Primary: pooled genuine-bug rate per arm
-    out.append("## Genuine-bug rate, pooled across models")
+    # Primary: pooled genuine-bug rate per arm — the 4 pre-registered models only.
+    out.append("## Genuine-bug rate, pooled across the 4 pre-registered models")
     out.append("| Arm | runs | genuine-bug | rate | 95% CI |")
     out.append("|---|---|---|---|---|")
     for arm in arms:
-        rs = [r for r in scorable if r["arm"] == arm]
+        rs = [r for r in core if r["arm"] == arm]
         k = sum(r["genuine_bug"] for r in rs)
         p, lo, hi = wilson(k, len(rs))
         out.append(f"| {arm} ({'raw' if arm == 'B' else 'with spec'}) | {len(rs)} | "
                    f"{k} | **{p:.0%}** | [{lo:.0%}, {hi:.0%}] |")
     out.append("\nH2 is supported iff the B and Bp intervals do not overlap.\n")
 
-    # Per model x arm
+    # Per model x arm (the pre-registered 4)
     out.append("## Per model — genuine-bug rate and all-pass rate")
     out.append("| Model | arm | runs | genuine-bug rate | all-5-pass rate |")
     out.append("|---|---|---|---|---|")
-    for e in engines:
+    for e in CORE:
         for arm in arms:
             rs = [r for r in scorable if r["engine"] == e and r["arm"] == arm]
             if not rs:
                 continue
             gb = sum(r["genuine_bug"] for r in rs)
             ap = sum(r["all_pass"] for r in rs)
-            out.append(f"| {e} | {arm} | {len(rs)} | {gb}/{len(rs)} ({gb/len(rs):.0%}) | "
+            out.append(f"| {LABEL.get(e, e)} | {arm} | {len(rs)} | {gb}/{len(rs)} ({gb/len(rs):.0%}) | "
                        f"{ap}/{len(rs)} ({ap/len(rs):.0%}) |")
     out.append("")
+
+    # Frontier extension — added after the pre-registration, labeled as such.
+    if ext_present:
+        out.append("## Frontier extension (added after the pre-registration)")
+        out.append("Not part of the original pre-registered design. After the first 120 runs, the "
+                   "fair question was whether the strongest configs a skeptic would name — Opus 4.8 "
+                   "at high effort, Codex 5.5 at xhigh — close the raw gap on their own. Same "
+                   "protocol, same blind execution gate, same five features and AC tags.")
+        out.append("")
+        out.append("| Config | arm | runs | genuine-bug rate | all-5-pass rate |")
+        out.append("|---|---|---|---|---|")
+        for e in ext_present:
+            for arm in arms:
+                rs = [r for r in scorable if r["engine"] == e and r["arm"] == arm]
+                if not rs:
+                    continue
+                gb = sum(r["genuine_bug"] for r in rs)
+                ap = sum(r["all_pass"] for r in rs)
+                out.append(f"| {LABEL.get(e, e)} | {arm} | {len(rs)} | {gb}/{len(rs)} ({gb/len(rs):.0%}) | "
+                           f"{ap}/{len(rs)} ({ap/len(rs):.0%}) |")
+        out.append("")
 
     # Per-cell variance (the non-determinism story)
     out.append("## Per-cell variance across the 3 runs (non-determinism)")

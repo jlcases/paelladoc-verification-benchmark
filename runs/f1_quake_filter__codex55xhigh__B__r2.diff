@@ -1,0 +1,155 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..27b12a4 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -3,13 +3,61 @@ import { NextResponse } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+- * Fetches real-time seismic events from USGS (last 24h, M2.5+)
++ * Fetches real-time seismic events from USGS (last 24h)
+  * No API key required
+  */
+ 
+-export async function GET() {
++type UsgsFeature = {
++  id?: string;
++  geometry?: {
++    coordinates?: number[];
++  } | null;
++  properties?: {
++    mag?: number | string | null;
++    place?: string;
++    time?: number;
++    url?: string;
++    tsunami?: number;
++    type?: string;
++    felt?: number | null;
++    alert?: string | null;
++  } | null;
++};
++
++type UsgsResponse = {
++  features?: UsgsFeature[];
++};
++
++type Earthquake = {
++  id?: string;
++  lat: number;
++  lng: number;
++  depth: number;
++  magnitude: number;
++  place?: string;
++  time?: number;
++  url?: string;
++  tsunami?: number;
++  type?: string;
++  felt?: number | null;
++  alert?: string | null;
++};
++
++const DEFAULT_MIN_MAGNITUDE = 2.5;
++const USGS_SUMMARY_BASE = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary';
++
++export async function GET(request: Request) {
+   try {
+-    const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
++    const { searchParams } = new URL(request.url);
++    const minMagnitude = parseMinMagnitude(searchParams);
++    if (minMagnitude === null) {
++      return NextResponse.json(
++        { earthquakes: [], error: 'minMagnitude must be a finite number' },
++        { status: 400 }
++      );
++    }
++
++    const url = getUsgsFeedUrl(minMagnitude);
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+     });
+@@ -18,31 +66,17 @@ export async function GET() {
+       return NextResponse.json({ earthquakes: [], error: 'USGS unavailable' });
+     }
+ 
+-    const data = await res.json();
++    const data = (await res.json()) as UsgsResponse;
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
+-      const coords = f.geometry?.coordinates || [0, 0, 0];
+-      const props = f.properties || {};
+-      return {
+-        id: f.id,
+-        lat: coords[1],
+-        lng: coords[0],
+-        depth: coords[2],
+-        magnitude: props.mag,
+-        place: props.place,
+-        time: props.time,
+-        url: props.url,
+-        tsunami: props.tsunami,
+-        type: props.type,
+-        felt: props.felt,
+-        alert: props.alert,
+-      };
+-    });
++    const earthquakes = features
++      .map(normalizeEarthquake)
++      .filter((eq): eq is Earthquake => eq !== null && eq.magnitude >= minMagnitude);
+ 
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,
++      minMagnitude,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {
+@@ -55,3 +89,48 @@ export async function GET() {
+   }
+ }
+ 
++function parseMinMagnitude(searchParams: URLSearchParams): number | null {
++  const raw =
++    searchParams.get('minMagnitude') ??
++    searchParams.get('minMag') ??
++    searchParams.get('min_magnitude');
++
++  if (raw === null) return DEFAULT_MIN_MAGNITUDE;
++
++  const value = Number(raw);
++  return Number.isFinite(value) ? value : null;
++}
++
++function getUsgsFeedUrl(minMagnitude: number) {
++  if (minMagnitude >= 4.5) return `${USGS_SUMMARY_BASE}/4.5_day.geojson`;
++  if (minMagnitude >= 2.5) return `${USGS_SUMMARY_BASE}/2.5_day.geojson`;
++  if (minMagnitude >= 1) return `${USGS_SUMMARY_BASE}/1.0_day.geojson`;
++  return `${USGS_SUMMARY_BASE}/all_day.geojson`;
++}
++
++function normalizeEarthquake(feature: UsgsFeature): Earthquake | null {
++  const coords = feature.geometry?.coordinates || [];
++  const props = feature.properties || {};
++  const lng = Number(coords[0]);
++  const lat = Number(coords[1]);
++  const depth = Number(coords[2] ?? 0);
++  const magnitude = Number(props.mag);
++
++  if (![lat, lng, depth, magnitude].every(Number.isFinite)) return null;
++
++  return {
++    id: feature.id,
++    lat,
++    lng,
++    depth,
++    magnitude,
++    place: props.place,
++    time: props.time,
++    url: props.url,
++    tsunami: props.tsunami,
++    type: props.type,
++    felt: props.felt,
++    alert: props.alert,
++  };
++}
++

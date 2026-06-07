@@ -1,0 +1,55 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..2127c40 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,13 +1,19 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   minMagnitude — optional. When a valid non-negative number, only earthquakes
++ *                  with magnitude >= minMagnitude are returned. Absent or invalid
++ *                  values (non-numeric, empty, or negative) are ignored and the
++ *                  full unfiltered set is returned.
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -21,7 +27,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    let earthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,6 +46,19 @@ export async function GET() {
+       };
+     });
+ 
++    // Optional magnitude filter so the map can hide small quakes.
++    // Invalid input (non-numeric, empty, or negative) is ignored — we keep the
++    // full set rather than erroring, so a bad query never produces a 500.
++    const minMagnitudeParam = request.nextUrl.searchParams.get('minMagnitude');
++    if (minMagnitudeParam !== null && minMagnitudeParam.trim() !== '') {
++      const minMagnitude = Number(minMagnitudeParam);
++      if (Number.isFinite(minMagnitude) && minMagnitude >= 0) {
++        earthquakes = earthquakes.filter(
++          (q: any) => typeof q.magnitude === 'number' && q.magnitude >= minMagnitude,
++        );
++      }
++    }
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,

@@ -1,0 +1,80 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..96a3e91 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,54 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { readdir } from 'fs/promises';
++import { join, relative, sep } from 'path';
++import { NextResponse } from 'next/server';
++
++export const runtime = 'nodejs';
++export const dynamic = 'force-dynamic';
++
++const API_ROOT = join(process.cwd(), 'src', 'app', 'api');
++const ROUTE_FILES = new Set(['route.ts', 'route.js']);
++
++async function collectApiEndpoints(dir = API_ROOT): Promise<string[]> {
++  const entries = await readdir(dir, { withFileTypes: true });
++  const endpoints: string[] = [];
++
++  for (const entry of entries) {
++    const entryPath = join(dir, entry.name);
++
++    if (entry.isDirectory()) {
++      endpoints.push(...await collectApiEndpoints(entryPath));
++      continue;
++    }
++
++    if (!entry.isFile() || !ROUTE_FILES.has(entry.name)) {
++      continue;
++    }
++
++    const routeDir = relative(API_ROOT, dir);
++    const segments = routeDir ? routeDir.split(sep) : [];
++    const path = ['/api', ...segments].join('/');
++
++    endpoints.push(path);
++  }
++
++  return endpoints;
++}
++
++async function getApiEndpoints(): Promise<string[]> {
++  try {
++    return (await collectApiEndpoints()).sort();
++  } catch {
++    return [];
++  }
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints: await getApiEndpoints(),
++  });
++}

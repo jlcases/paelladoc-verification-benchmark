@@ -1,0 +1,146 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..ada60b4 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,120 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import type { Dirent } from 'node:fs';
++import { readdir, readFile } from 'node:fs/promises';
++import path from 'node:path';
++
++export const dynamic = 'force-dynamic';
++
++const ROUTE_FILE_PATTERN = /^route\.(?:ts|tsx|js|jsx|mjs|cjs)$/;
++
++async function discoverApiEndpoints(): Promise<string[]> {
++  const sourceEndpoints = await discoverApiEndpointsFromSource();
++
++  if (sourceEndpoints.length > 0) {
++    return sourceEndpoints;
++  }
++
++  return discoverApiEndpointsFromManifest();
++}
++
++async function discoverApiEndpointsFromSource(): Promise<string[]> {
++  const apiDirs = [
++    path.join(process.cwd(), 'src', 'app', 'api'),
++    path.join(process.cwd(), 'app', 'api'),
++  ];
++
++  for (const apiDir of apiDirs) {
++    const endpoints = await discoverRoutesInDirectory(apiDir, apiDir);
++
++    if (endpoints.length > 0) {
++      return endpoints;
++    }
++  }
++
++  return [];
++}
++
++async function discoverRoutesInDirectory(apiDir: string, currentDir: string): Promise<string[]> {
++  let entries: Dirent<string>[];
++
++  try {
++    entries = await readdir(currentDir, { withFileTypes: true });
++  } catch {
++    return [];
++  }
++
++  const endpoints: string[] = [];
++
++  for (const entry of entries) {
++    if (entry.isDirectory()) {
++      if (!entry.name.startsWith('_')) {
++        endpoints.push(...await discoverRoutesInDirectory(apiDir, path.join(currentDir, entry.name)));
++      }
++      continue;
++    }
++
++    if (entry.isFile() && ROUTE_FILE_PATTERN.test(entry.name)) {
++      endpoints.push(routeDirectoryToEndpoint(path.relative(apiDir, currentDir)));
++    }
++  }
++
++  return sortUnique(endpoints);
++}
++
++async function discoverApiEndpointsFromManifest(): Promise<string[]> {
++  const manifestPath = path.join(process.cwd(), '.next', 'server', 'app-paths-manifest.json');
++
++  try {
++    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, string>;
++    return sortUnique(Object.keys(manifest).flatMap(appPathToApiEndpoint));
++  } catch {
++    return [];
++  }
++}
++
++function appPathToApiEndpoint(appPath: string): string[] {
++  if (appPath === '/api/route') {
++    return ['/api'];
++  }
++
++  if (!appPath.startsWith('/api/') || !appPath.endsWith('/route')) {
++    return [];
++  }
++
++  return [normalizeEndpointPath(appPath.slice(0, -'/route'.length))];
++}
++
++function routeDirectoryToEndpoint(relativeRouteDir: string): string {
++  if (relativeRouteDir === '.') {
++    return '/api';
++  }
++
++  return normalizeEndpointPath(`/api/${relativeRouteDir.split(path.sep).join('/')}`);
++}
++
++function normalizeEndpointPath(endpoint: string): string {
++  const segments = endpoint
++    .split('/')
++    .filter((segment) => segment && !isRouteGroup(segment) && !segment.startsWith('@'));
++
++  return `/${segments.join('/')}`;
++}
++
++function isRouteGroup(segment: string): boolean {
++  return segment.startsWith('(') && segment.endsWith(')');
++}
++
++function sortUnique(values: string[]): string[] {
++  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints: await discoverApiEndpoints(),
++  });
++}

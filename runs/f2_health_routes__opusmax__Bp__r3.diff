@@ -1,0 +1,115 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..8490490 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,89 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'node:fs/promises';
++import path from 'node:path';
++
++// This route reads the filesystem to enumerate API routes, so it must run on
++// the Node.js runtime and be evaluated per-request (never prerendered).
++export const runtime = 'nodejs';
++export const dynamic = 'force-dynamic';
++
++// Next.js App Router treats a folder as a route only when it contains a
++// `route` file with one of the default page extensions.
++const ROUTE_FILE = /^route\.(?:ts|tsx|js|jsx)$/;
++
++// Static fallback used only if the source tree can't be scanned at runtime
++// (e.g. a standalone production bundle without `src/`). Keeps `/api/health`
++// responsive instead of throwing. Every entry begins with `/api/`.
++const FALLBACK_ENDPOINTS = [
++  '/api/flights',
++  '/api/satellites',
++  '/api/earthquakes',
++  '/api/news',
++  '/api/gdelt',
++  '/api/markets',
++  '/api/frontlines',
++  '/api/region-dossier',
++];
++
++/**
++ * Walk the `src/app/api` tree and return the public path of every route
++ * handler found, e.g. `/api/cctv`, `/api/osint/phone`.
++ *
++ * Mirrors App Router conventions: route groups `(group)` and parallel-route
++ * slots `@slot` don't contribute a URL segment, and private `_folders` are
++ * excluded from routing entirely.
++ */
++async function discoverApiEndpoints(): Promise<string[]> {
++  const apiDir = path.join(process.cwd(), 'src', 'app', 'api');
++  const endpoints = new Set<string>();
++
++  async function walk(dir: string, segments: string[]): Promise<void> {
++    const entries = await readdir(dir, { withFileTypes: true });
++
++    for (const entry of entries) {
++      if (entry.isDirectory()) {
++        const name = entry.name;
++        // Private folders are opted out of routing.
++        if (name.startsWith('_')) continue;
++        // Route groups `(group)` and parallel slots `@slot` add no URL segment.
++        const omitFromPath =
++          (name.startsWith('(') && name.endsWith(')')) || name.startsWith('@');
++        const nextSegments = omitFromPath ? segments : [...segments, name];
++        await walk(path.join(dir, name), nextSegments);
++      } else if (entry.isFile() && ROUTE_FILE.test(entry.name)) {
++        endpoints.add(['/api', ...segments].join('/'));
++      }
++    }
++  }
++
++  await walk(apiDir, []);
++
++  return [...endpoints]
++    // A route directly at `/api` would yield `/api`; criterion requires the
++    // `/api/` prefix, so keep only nested handlers.
++    .filter((endpoint) => endpoint.startsWith('/api/'))
++    .sort();
++}
++
++export async function GET() {
++  let endpoints: string[];
++  try {
++    endpoints = await discoverApiEndpoints();
++    // An empty result means the scan ran but found nothing usable — treat it
++    // as a failed scan and fall back rather than reporting zero endpoints.
++    if (endpoints.length === 0) {
++      endpoints = FALLBACK_ENDPOINTS;
++    }
++  } catch {
++    endpoints = FALLBACK_ENDPOINTS;
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

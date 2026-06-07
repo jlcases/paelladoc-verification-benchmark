@@ -1,0 +1,48 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..85a2d7a 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -7,8 +7,20 @@ import { NextResponse } from 'next/server';
+  * No API key required
+  */
+ 
+-export async function GET() {
++function parsePositiveLimit(value: string | null): number | null {
++  if (!value) return null;
++
++  const parsed = Number(value);
++  if (!Number.isFinite(parsed) || parsed <= 0) return null;
++
++  const limit = Math.floor(parsed);
++  return limit > 0 ? limit : null;
++}
++
++export async function GET(request: Request) {
+   try {
++    const { searchParams } = new URL(request.url);
++    const limit = parsePositiveLimit(searchParams.get('limit'));
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -39,10 +51,19 @@ export async function GET() {
+         alert: props.alert,
+       };
+     });
++    const returnedEarthquakes = limit === null
++      ? earthquakes
++      : [...earthquakes]
++          .sort((a, b) => {
++            const magnitudeA = typeof a.magnitude === 'number' && Number.isFinite(a.magnitude) ? a.magnitude : -Infinity;
++            const magnitudeB = typeof b.magnitude === 'number' && Number.isFinite(b.magnitude) ? b.magnitude : -Infinity;
++            return magnitudeB - magnitudeA;
++          })
++          .slice(0, limit);
+ 
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: returnedEarthquakes,
++      total: returnedEarthquakes.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

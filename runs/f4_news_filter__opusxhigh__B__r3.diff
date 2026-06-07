@@ -1,0 +1,48 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..39642e1 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -38,11 +38,39 @@ const LIVE_FEEDS = [
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+ ];
+ 
+-export async function GET() {
++// Parse a query param into a normalized, lower-cased set of filter values.
++// Supports comma-separated lists (e.g. ?country=US,GB), matching the
++// convention used by the other OSIRIS feed routes.
++function parseFilter(raw: string | null): Set<string> {
++  return new Set(
++    (raw ?? '')
++      .split(',')
++      .map((v) => v.trim().toLowerCase())
++      .filter(Boolean)
++  );
++}
++
++export async function GET(request: Request) {
++  const { searchParams } = new URL(request.url);
++  const countries = parseFilter(searchParams.get('country'));
++  const categories = parseFilter(searchParams.get('category'));
++
++  const feeds = LIVE_FEEDS.filter((feed) => {
++    if (countries.size && !countries.has(feed.country.toLowerCase())) return false;
++    if (categories.size && !categories.has(feed.category.toLowerCase())) return false;
++    return true;
++  });
++
+   return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
+-    categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
++    feeds,
++    total: feeds.length,
++    // Available filter values, derived from the full feed set.
++    countries: [...new Set(LIVE_FEEDS.map((f) => f.country))].sort(),
++    categories: [...new Set(LIVE_FEEDS.map((f) => f.category))].sort(),
++    filters: {
++      country: countries.size ? [...countries] : null,
++      category: categories.size ? [...categories] : null,
++    },
+     timestamp: new Date().toISOString(),
+   }, {
+     headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=172800' },

@@ -1,0 +1,87 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..ab55b1d 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,61 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdirSync, type Dirent } from 'node:fs';
++import path from 'node:path';
++
++// A Route Handler file marks the directory it lives in as a real API route.
++const ROUTE_FILE = /^route\.(ts|tsx|js|jsx|mjs)$/;
++
++/**
++ * Walk an `app/api` directory tree and collect the public URL path of every
++ * Route Handler — i.e. every directory that contains a `route.*` file.
++ *
++ * Route groups (`(group)`) are folder-only and don't appear in the URL, so we
++ * skip their segment while still descending into them.
++ */
++function collectApiRoutes(dir: string, urlPath = '/api'): string[] {
++  let entries: Dirent[];
++  try {
++    entries = readdirSync(dir, { withFileTypes: true });
++  } catch {
++    return []; // directory missing for this cwd — caller falls back elsewhere
++  }
++
++  const routes: string[] = [];
++  for (const entry of entries) {
++    if (entry.isFile()) {
++      if (ROUTE_FILE.test(entry.name)) routes.push(urlPath);
++    } else if (entry.isDirectory()) {
++      const isRouteGroup = entry.name.startsWith('(') && entry.name.endsWith(')');
++      const childUrl = isRouteGroup ? urlPath : `${urlPath}/${entry.name}`;
++      routes.push(...collectApiRoutes(path.join(dir, entry.name), childUrl));
++    }
++  }
++  return routes;
++}
++
++/**
++ * Discover the live API surface from disk so this list never goes stale.
++ * Primary source is the `src` tree (present in dev, `next start`, and at build
++ * time); the compiled tree is the fallback for `output: 'standalone'`, where
++ * `src` isn't shipped but `.next/server/app` is.
++ */
++function discoverApiRoutes(): string[] {
++  const cwd = process.cwd();
++  const fromSource = collectApiRoutes(path.join(cwd, 'src', 'app', 'api'));
++  const found = fromSource.length
++    ? fromSource
++    : collectApiRoutes(path.join(cwd, '.next', 'server', 'app', 'api'));
++
++  return [...new Set(found)].sort();
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints: discoverApiRoutes(),
++  });
++}

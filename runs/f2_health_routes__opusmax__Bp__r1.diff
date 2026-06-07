@@ -1,0 +1,102 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..14a823e 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,76 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'node:fs/promises';
++import path from 'node:path';
++
++// The filesystem scan must run per-request (not be prerendered at build time),
++// so that the endpoint list always reflects the route tree on disk.
++export const dynamic = 'force-dynamic';
++export const runtime = 'nodejs';
++
++// A directory in the App Router is a real route only when it contains a
++// `route` handler file. Anything else (helpers, types, generated data) is not.
++const ROUTE_FILE = /^route\.(?:ts|tsx|js|jsx|mjs|cjs)$/;
++
++// Used only when the filesystem scan is unavailable (e.g. the source tree is
++// not present in a packaged/standalone deployment) so the route never throws.
++const FALLBACK_ENDPOINTS = [
++  '/api/flights',
++  '/api/satellites',
++  '/api/earthquakes',
++  '/api/news',
++  '/api/gdelt',
++  '/api/markets',
++  '/api/frontlines',
++  '/api/region-dossier',
++];
++
++/**
++ * Walk the `src/app/api` tree and collect every nested route, returning each as
++ * a full `/api/...` path. Directories without a `route` file are traversed but
++ * not listed; Next.js route groups `(group)` are unwrapped from the URL path,
++ * and private (`_`) / parallel-slot (`@`) folders are skipped.
++ */
++async function collectApiEndpoints(apiDir: string): Promise<string[]> {
++  const endpoints: string[] = [];
++
++  async function walk(dir: string, segments: string[]): Promise<void> {
++    const entries = await readdir(dir, { withFileTypes: true });
++
++    if (segments.length > 0 && entries.some((e) => e.isFile() && ROUTE_FILE.test(e.name))) {
++      endpoints.push('/api/' + segments.join('/'));
++    }
++
++    for (const entry of entries) {
++      if (!entry.isDirectory()) continue;
++      const name = entry.name;
++      if (name.startsWith('_') || name.startsWith('@')) continue;
++      const isRouteGroup = name.startsWith('(') && name.endsWith(')');
++      await walk(path.join(dir, name), isRouteGroup ? segments : [...segments, name]);
++    }
++  }
++
++  await walk(apiDir, []);
++  return endpoints.sort();
++}
++
++export async function GET() {
++  let endpoints = FALLBACK_ENDPOINTS;
++  try {
++    const scanned = await collectApiEndpoints(path.join(process.cwd(), 'src', 'app', 'api'));
++    if (scanned.length > 0) {
++      endpoints = scanned;
++    }
++  } catch {
++    // Directory scan failed (missing source tree, permissions, etc.) — keep the
++    // fallback list so the health check still responds with 200.
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

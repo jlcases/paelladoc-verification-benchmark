@@ -1,0 +1,49 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..d7e355f 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -5,9 +5,15 @@ import { NextResponse } from 'next/server';
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   minMagnitude — optional. When set to a valid non-negative number, only
++ *   earthquakes with magnitude >= minMagnitude are returned. Invalid values
++ *   (absent, empty, non-numeric, or negative) are ignored and the full,
++ *   unfiltered set is returned.
+  */
+ 
+-export async function GET() {
++export async function GET(request: Request) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -40,9 +46,25 @@ export async function GET() {
+       };
+     });
+ 
++    // Optional magnitude filter. A valid, non-negative number keeps only
++    // earthquakes with magnitude >= minMagnitude; anything else (absent,
++    // empty, non-numeric, or negative) is ignored and the full set is returned.
++    const { searchParams } = new URL(request.url);
++    const minMagnitudeParam = searchParams.get('minMagnitude');
++    const parsedMin = minMagnitudeParam !== null ? Number(minMagnitudeParam) : NaN;
++    const applyMinFilter =
++      minMagnitudeParam !== null &&
++      minMagnitudeParam.trim() !== '' &&
++      Number.isFinite(parsedMin) &&
++      parsedMin >= 0;
++
++    const filtered = applyMinFilter
++      ? earthquakes.filter((q: any) => typeof q.magnitude === 'number' && q.magnitude >= parsedMin)
++      : earthquakes;
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: filtered,
++      total: filtered.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

@@ -1,0 +1,53 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..9778377 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,13 +1,18 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextRequest, NextResponse } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   limit — optional positive integer. When provided, caps the response to the
++ *           strongest (highest magnitude) events. Ignored when absent or invalid
++ *           (non-numeric or <= 0), in which case every earthquake is returned.
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -21,7 +26,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    let earthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,6 +45,18 @@ export async function GET() {
+       };
+     });
+ 
++    // Optional result cap. Only applied for a valid positive numeric limit;
++    // an absent or invalid value (non-numeric or <= 0) returns every earthquake.
++    // When applied, keep the strongest (highest magnitude) events first, then
++    // take the top N. Events with a missing magnitude sort to the bottom.
++    const limitParam = request.nextUrl.searchParams.get('limit');
++    const limit = Number(limitParam);
++    if (limitParam !== null && Number.isFinite(limit) && limit > 0) {
++      earthquakes = earthquakes
++        .sort((a: any, b: any) => (b.magnitude ?? -Infinity) - (a.magnitude ?? -Infinity))
++        .slice(0, Math.floor(limit));
++    }
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,

@@ -1,0 +1,132 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..1fac35f 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,31 +1,49 @@
+ 
+-import { NextResponse } from 'next/server';
+-
+-/**
+- * OSIRIS — Earthquake Data API
+- * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+- * No API key required
+- */
+-
+-export async function GET() {
+-  try {
+-    const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+-    const res = await fetch(url, {
+-      signal: AbortSignal.timeout(10000),
+-    });
++import { NextResponse } from 'next/server';
++
++/**
++ * OSIRIS — Earthquake Data API
++ * Fetches real-time seismic events from USGS (last 24h, M2.5+)
++ * No API key required
++ */
++
++const MAX_RESULT_LIMIT = 1000;
++
++function parseResultLimit(value: string | null) {
++  if (!value) return undefined;
++
++  const parsed = Number(value);
++  if (!Number.isInteger(parsed) || parsed < 1) return null;
++
++  return Math.min(parsed, MAX_RESULT_LIMIT);
++}
++
++export async function GET(request: Request) {
++  try {
++    const { searchParams } = new URL(request.url);
++    const resultLimit = parseResultLimit(searchParams.get('limit'));
++    if (resultLimit === null) {
++      return NextResponse.json({ earthquakes: [], error: 'Invalid limit parameter' }, { status: 400 });
++    }
++
++    const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
++    const res = await fetch(url, {
++      signal: AbortSignal.timeout(10000),
++    });
+ 
+     if (!res.ok) {
+       return NextResponse.json({ earthquakes: [], error: 'USGS unavailable' });
+     }
+-
+-    const data = await res.json();
+-    const features = data.features || [];
+-
+-    const earthquakes = features.map((f: any) => {
+-      const coords = f.geometry?.coordinates || [0, 0, 0];
+-      const props = f.properties || {};
+-      return {
+-        id: f.id,
++
++    const data = await res.json();
++    const features = data.features || [];
++    const limitedFeatures = typeof resultLimit === 'number' ? features.slice(0, resultLimit) : features;
++
++    const earthquakes = limitedFeatures.map((f: any) => {
++      const coords = f.geometry?.coordinates || [0, 0, 0];
++      const props = f.properties || {};
++      return {
++        id: f.id,
+         lat: coords[1],
+         lng: coords[0],
+         depth: coords[2],
+@@ -38,13 +56,15 @@ export async function GET() {
+         felt: props.felt,
+         alert: props.alert,
+       };
+-    });
+-
+-    return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
+-      timestamp: new Date().toISOString(),
+-    }, {
++    });
++
++    return NextResponse.json({
++      earthquakes,
++      total: earthquakes.length,
++      totalAvailable: features.length,
++      limit: resultLimit ?? null,
++      timestamp: new Date().toISOString(),
++    }, {
+       headers: {
+         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+       },
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e52e7a5..5fad75b 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -81,6 +81,9 @@ function getYouTubeWatchUrl(url: string): string {
+   return url;
+ }
+ 
++const EARTHQUAKE_RESULT_LIMIT = 100;
++const EARTHQUAKES_ENDPOINT = `/api/earthquakes?limit=${EARTHQUAKE_RESULT_LIMIT}`;
++
+ export default function Dashboard() {
+   const dataRef = useRef<any>({});
+   const [dataVersion, setDataVersion] = useState(0);
+@@ -286,7 +289,7 @@ export default function Dashboard() {
+   // ── PROGRESSIVE DATA LOADING (request-optimized) ──
+   useEffect(() => {
+     // Priority 1: Core feeds (always needed for panels)
+-    fetchEndpoint('/api/earthquakes');
++    fetchEndpoint(EARTHQUAKES_ENDPOINT);
+     fetchEndpoint('/api/news');
+     const marketTimer = setTimeout(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 800);
+ 
+@@ -300,7 +303,7 @@ export default function Dashboard() {
+ 
+     // Polling — OPTIMIZED intervals to minimize edge requests
+     const intervals = [
+-      setInterval(() => fetchEndpoint('/api/earthquakes'), 900000),  // 15 min (was 5)
++      setInterval(() => fetchEndpoint(EARTHQUAKES_ENDPOINT), 900000),  // 15 min (was 5)
+       setInterval(() => fetchEndpoint('/api/news'), 1800000),        // 30 min (was 10)
+       setInterval(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 900000), // 15 min (was 5)
+     ];

@@ -1,0 +1,88 @@
+diff --git a/src/app/api/space-weather/route.ts b/src/app/api/space-weather/route.ts
+index 03b9f6b..da5a1cc 100644
+--- a/src/app/api/space-weather/route.ts
++++ b/src/app/api/space-weather/route.ts
+@@ -8,17 +8,47 @@ import { NextResponse } from 'next/server';
+  * Data: Kp index (geomagnetic), solar flares, CME alerts
+  */
+ 
++type SpaceWeatherPayload = {
++  kp_index: number;
++  storm_level: string;
++  storm_color: string;
++  kp_timestamp: string;
++  alerts: any[];
++  solar_flares: any[];
++  timestamp: string;
++};
++
++const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' };
++
++// Short-lived in-process cache. NOAA's planetary_k feed is 1-minute resolution,
++// so a 60s TTL collapses bursts of dashboard requests into at most one upstream
++// fetch per minute per server instance — fetching more often can't yield newer
++// data. Mirrors the in-memory cache convention used by /api/satellites.
++const CACHE_TTL_MS = 60_000;
++let cachedPayload: SpaceWeatherPayload | null = null;
++let cacheTime = 0;
++
+ export async function GET() {
++  const now = Date.now();
++
++  // Serve the cached snapshot while it's still fresh — skips NOAA entirely.
++  if (cachedPayload && now - cacheTime < CACHE_TTL_MS) {
++    return NextResponse.json(cachedPayload, { headers: CACHE_HEADERS });
++  }
++
+   try {
+     const [kpRes, alertsRes, flareRes] = await Promise.allSettled([
+       fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', {
+         signal: AbortSignal.timeout(8000),
++        cache: 'no-store',
+       }).then(r => r.json()),
+       fetch('https://services.swpc.noaa.gov/json/alerts.json', {
+         signal: AbortSignal.timeout(8000),
++        cache: 'no-store',
+       }).then(r => r.json()),
+       fetch('https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json', {
+         signal: AbortSignal.timeout(8000),
++        cache: 'no-store',
+       }).then(r => r.json()),
+     ]);
+ 
+@@ -67,7 +97,7 @@ export async function GET() {
+       }
+     }
+ 
+-    return NextResponse.json({
++    const payload: SpaceWeatherPayload = {
+       kp_index: kpIndex,
+       storm_level: stormLevel,
+       storm_color: stormColor,
+@@ -75,13 +105,24 @@ export async function GET() {
+       alerts,
+       solar_flares: flares,
+       timestamp: new Date().toISOString(),
+-    });
++    };
++
++    // Cache the computed snapshot so subsequent requests within the TTL
++    // don't re-hit NOAA.
++    cachedPayload = payload;
++    cacheTime = now;
++
++    return NextResponse.json(payload, { headers: CACHE_HEADERS });
+   } catch (error) {
+     console.error('Space Weather API error:', error);
++    // On a transient upstream failure, serve the last good snapshot if we have
++    // one rather than surfacing a 500 to the dashboard.
++    if (cachedPayload) {
++      return NextResponse.json(cachedPayload, { headers: CACHE_HEADERS });
++    }
+     return NextResponse.json({
+       kp_index: 0, storm_level: 'Unknown', storm_color: '#555',
+       alerts: [], solar_flares: [], error: 'Failed to fetch space weather data',
+     }, { status: 500 });
+   }
+ }
+-

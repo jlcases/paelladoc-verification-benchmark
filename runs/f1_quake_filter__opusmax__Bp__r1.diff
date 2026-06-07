@@ -1,0 +1,60 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..2199250 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,13 +1,18 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   minMagnitude — optional. Returns only quakes with magnitude >= this value.
++ *                  Invalid input (non-numeric, empty, or negative) is ignored
++ *                  and the full unfiltered set is returned.
+  */
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
+   try {
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+@@ -19,7 +24,7 @@ export async function GET() {
+     }
+ 
+     const data = await res.json();
+-    const features = data.features || [];
++    const features: any[] = data.features || [];
+ 
+     const earthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+@@ -40,9 +45,23 @@ export async function GET() {
+       };
+     });
+ 
++    // Optional magnitude filter. Only applied when a valid, non-negative
++    // numeric threshold is provided; otherwise the full set is returned so
++    // bad input can never break the response (no 500, no empty result).
++    const minMagnitudeParam = request.nextUrl.searchParams.get('minMagnitude');
++    let filteredEarthquakes = earthquakes;
++    if (minMagnitudeParam !== null && minMagnitudeParam.trim() !== '') {
++      const minMagnitude = Number(minMagnitudeParam);
++      if (Number.isFinite(minMagnitude) && minMagnitude >= 0) {
++        filteredEarthquakes = earthquakes.filter(
++          (q) => typeof q.magnitude === 'number' && q.magnitude >= minMagnitude
++        );
++      }
++    }
++
+     return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
++      earthquakes: filteredEarthquakes,
++      total: filteredEarthquakes.length,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {

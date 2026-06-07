@@ -1,0 +1,11 @@
+{
+  "feature": "f3_spaceweather_cache",
+  "engine": "opusmax",
+  "arm": "Bp",
+  "run": 2,
+  "empty_diff": false,
+  "build_green": true,
+  "agent_ok": true,
+  "timeout": false,
+  "cost_usd": 2.07367875
+}

@@ -34,11 +34,18 @@ WORKROOT = Path("/tmp/bench_v2")
 RUNS = HERE / "runs"
 FEATURES = json.load(open(HERE / "features.json"))
 ARMS = ("B", "Bp")
-ENGINES = ("claude", "haiku", "codex", "kimi")
+# Core (pre-registered): the original 4 models. Frontier extension (added after the first 120,
+# labeled as such in RESULTS — NOT part of the pre-registration): the strongest configs a
+# skeptic would name — Opus 4.8 at xhigh and max effort, Codex 5.5 at xhigh.
+CORE_ENGINES = ("claude", "haiku", "codex", "kimi")
+EXT_ENGINES = ("opusxhigh", "opusmax", "codex55xhigh")
+ENGINES = CORE_ENGINES + EXT_ENGINES
 
-# claude/haiku run on the same `claude` CLI, only the model changes (clean cheap-vs-frontier
-# contrast). codex/kimi use their CLI default model.
-MODEL = {"claude": "claude-sonnet-4-6", "haiku": "claude-haiku-4-5"}
+# claude/haiku/opus run on the same `claude` CLI, only model (+effort) change. codex uses its
+# CLI default model; codex55xhigh pins gpt-5.5 at xhigh reasoning. kimi uses its default.
+MODEL = {"claude": "claude-sonnet-4-6", "haiku": "claude-haiku-4-5",
+         "opusxhigh": "claude-opus-4-8", "opusmax": "claude-opus-4-8"}
+EFFORT = {"opusxhigh": "xhigh", "opusmax": "max"}
 
 
 def build_prompt(feat: dict, arm: str) -> str:
@@ -54,15 +61,19 @@ def build_prompt(feat: dict, arm: str) -> str:
 
 
 def run_engine(engine: str, prompt: str, cwd: Path) -> dict:
-    if engine in ("claude", "haiku"):
+    if engine in ("claude", "haiku", "opusxhigh", "opusmax"):
         cmd = ["claude", "--print", prompt, "--model", MODEL[engine],
                "--output-format", "stream-json", "--verbose",
                "--permission-mode", "bypassPermissions", "--dangerously-skip-permissions"]
-        timeout = 1200
-    elif engine == "codex":
+        if engine in EFFORT:
+            cmd += ["--effort", EFFORT[engine]]
+        timeout = 2400 if engine in EFFORT else 1200
+    elif engine in ("codex", "codex55xhigh"):
         cmd = ["codex", "exec", prompt, "--dangerously-bypass-approvals-and-sandbox",
                "--skip-git-repo-check"]
-        timeout = 1200
+        if engine == "codex55xhigh":
+            cmd += ["-m", "gpt-5.5", "-c", "model_reasoning_effort=xhigh"]
+        timeout = 2400 if engine == "codex55xhigh" else 1200
     elif engine == "kimi":
         cmd = ["kimi", "-p", prompt, "--yolo", "--print", "-w", str(cwd)]
         timeout = 1800
@@ -73,7 +84,7 @@ def run_engine(engine: str, prompt: str, cwd: Path) -> dict:
     except subprocess.TimeoutExpired:
         return {"ok": False, "timeout": True, "cost_usd": None}
     cost = None
-    if engine in ("claude", "haiku"):
+    if engine in ("claude", "haiku", "opusxhigh", "opusmax"):
         for ln in proc.stdout.splitlines():
             try:
                 ev = json.loads(ln)

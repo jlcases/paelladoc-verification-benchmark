@@ -1,0 +1,110 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..e271ea5 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,84 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'node:fs/promises';
++import { join } from 'node:path';
++
++// The endpoint list is derived from the filesystem at request time, so force
++// this handler to be dynamic (never prerendered/baked at build time).
++export const dynamic = 'force-dynamic';
++
++// Used only if the filesystem scan fails (e.g. the `src` tree isn't present at
++// runtime, as can happen with `output: 'standalone'` bundles). Keeping a static
++// list here guarantees the route still responds 200 instead of throwing.
++const FALLBACK_ENDPOINTS = [
++  '/api/flights',
++  '/api/satellites',
++  '/api/earthquakes',
++  '/api/news',
++  '/api/gdelt',
++  '/api/markets',
++  '/api/frontlines',
++  '/api/region-dossier',
++];
++
++const ROUTE_FILE = /^route\.(js|jsx|ts|tsx|mjs|cjs)$/;
++
++/**
++ * Recursively walk the App Router `api` tree and collect every route segment
++ * that defines a `route.*` handler, returning each as a full `/api/...` path.
++ */
++async function collectEndpoints(
++  dir: string,
++  segments: string[],
++  out: string[]
++): Promise<void> {
++  const entries = await readdir(dir, { withFileTypes: true });
++
++  if (entries.some((e) => e.isFile() && ROUTE_FILE.test(e.name))) {
++    out.push('/api' + (segments.length ? '/' + segments.join('/') : ''));
++  }
++
++  for (const entry of entries) {
++    if (!entry.isDirectory()) continue;
++    const name = entry.name;
++
++    // Private folders (`_foo`) never produce routes.
++    if (name.startsWith('_')) continue;
++
++    // Route groups (`(group)`) and parallel slots (`@slot`) don't contribute a
++    // URL segment, so recurse without extending the path.
++    if ((name.startsWith('(') && name.endsWith(')')) || name.startsWith('@')) {
++      await collectEndpoints(join(dir, name), segments, out);
++      continue;
++    }
++
++    await collectEndpoints(join(dir, name), [...segments, name], out);
++  }
++}
++
++async function discoverEndpoints(): Promise<string[]> {
++  const apiDir = join(process.cwd(), 'src', 'app', 'api');
++  const out: string[] = [];
++  await collectEndpoints(apiDir, [], out);
++
++  // Criterion: every entry is a string path under `/api/`.
++  return out.filter((p) => p.startsWith('/api/')).sort();
++}
++
++export async function GET() {
++  let endpoints: string[];
++  try {
++    endpoints = await discoverEndpoints();
++    if (endpoints.length === 0) endpoints = FALLBACK_ENDPOINTS;
++  } catch {
++    endpoints = FALLBACK_ENDPOINTS;
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

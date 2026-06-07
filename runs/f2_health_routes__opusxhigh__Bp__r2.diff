@@ -1,0 +1,156 @@
+diff --git a/next.config.ts b/next.config.ts
+index 2eeb49b..6040302 100644
+--- a/next.config.ts
++++ b/next.config.ts
+@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
+ 
+ const nextConfig: NextConfig = {
+   output: 'standalone',
++  // /api/health derives its endpoint list by scanning the API route tree at
++  // runtime. In a standalone build the source tree isn't bundled by default,
++  // so trace the route files into the output to keep the scan working.
++  outputFileTracingIncludes: {
++    '/api/health': ['src/app/api/**/route.{ts,tsx,js,jsx,mjs,cjs}'],
++  },
+   serverExternalPackages: ['ws'],
+   transpilePackages: ['react-map-gl', 'mapbox-gl', 'maplibre-gl'],
+   typescript: {
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..7751494 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,113 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { NextResponse } from 'next/server';
++import { readdir } from 'node:fs/promises';
++import path from 'node:path';
++
++// The endpoint list is derived from the filesystem at request time, so this
++// handler must never be prerendered/cached at build time.
++export const runtime = 'nodejs';
++export const dynamic = 'force-dynamic';
++
++// A directory contains a Route Handler when it holds a `route.{ts,tsx,js,jsx,...}`
++// file. Plain helper modules (e.g. `cctv/asfinag.ts`) are intentionally ignored.
++const ROUTE_FILE_PATTERN = /^route\.(?:[mc]?[jt]sx?)$/;
++
++// Used only when the filesystem scan is unavailable — e.g. a `standalone`
++// deployment where the source tree was not bundled. Kept complete so the
++// endpoint degrades gracefully (still HTTP 200, still a useful list) instead
++// of throwing or returning nothing.
++const FALLBACK_ENDPOINTS: readonly string[] = [
++  '/api/ai/analyze',
++  '/api/ai/briefing',
++  '/api/air-quality',
++  '/api/cctv',
++  '/api/cctv/stream-status',
++  '/api/country-risk',
++  '/api/cyber-threats',
++  '/api/earthquakes',
++  '/api/fires',
++  '/api/flights',
++  '/api/frontlines',
++  '/api/gdelt',
++  '/api/github-webhook',
++  '/api/health',
++  '/api/infrastructure',
++  '/api/live-news',
++  '/api/maritime',
++  '/api/markets',
++  '/api/news',
++  '/api/osint/bgp',
++  '/api/osint/certs',
++  '/api/osint/cve',
++  '/api/osint/dns',
++  '/api/osint/github',
++  '/api/osint/ip',
++  '/api/osint/leaks',
++  '/api/osint/mac',
++  '/api/osint/phone',
++  '/api/osint/sanctions',
++  '/api/osint/shodan',
++  '/api/osint/sweep',
++  '/api/osint/threats',
++  '/api/osint/whois',
++  '/api/region-dossier',
++  '/api/satellites',
++  '/api/scanner',
++  '/api/scm-suppliers',
++  '/api/sentinel',
++  '/api/space-weather',
++  '/api/stats',
++  '/api/weather',
++];
++
++/**
++ * Recursively walks the `src/app/api` tree and returns every routable path,
++ * mapping each directory that holds a `route` file to its full `/api/...` URL.
++ *
++ * App Router conventions are honoured: route groups `(group)` add no URL
++ * segment, while private folders `_internal` and parallel-route slots `@slot`
++ * are not addressable and are skipped.
++ */
++async function scanApiRoutes(apiDir: string): Promise<string[]> {
++  const found: string[] = [];
++
++  async function walk(currentDir: string, segments: string[]): Promise<void> {
++    const entries = await readdir(currentDir, { withFileTypes: true });
++
++    if (entries.some((e) => e.isFile() && ROUTE_FILE_PATTERN.test(e.name))) {
++      found.push('/api' + segments.map((s) => `/${s}`).join(''));
++    }
++
++    for (const entry of entries) {
++      if (!entry.isDirectory()) continue;
++      const name = entry.name;
++      if (name.startsWith('_') || name.startsWith('@')) continue;
++      const isRouteGroup = name.startsWith('(') && name.endsWith(')');
++      const nextSegments = isRouteGroup ? segments : [...segments, name];
++      await walk(path.join(currentDir, name), nextSegments);
++    }
++  }
++
++  await walk(apiDir, []);
++  return found;
++}
++
++export async function GET() {
++  let endpoints: string[];
++  try {
++    const apiDir = path.join(process.cwd(), 'src', 'app', 'api');
++    const scanned = await scanApiRoutes(apiDir);
++    // Guard against an empty scan (e.g. tree present but unreadable contents).
++    endpoints = scanned.length > 0 ? scanned.sort() : [...FALLBACK_ENDPOINTS];
++  } catch {
++    endpoints = [...FALLBACK_ENDPOINTS];
++  }
++
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: process.uptime ? Math.round(process.uptime()) : 0,
++    timestamp: new Date().toISOString(),
++    endpoints,
++  });
++}

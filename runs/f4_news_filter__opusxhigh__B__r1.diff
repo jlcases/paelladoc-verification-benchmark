@@ -1,0 +1,51 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..d3ee24d 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -1,5 +1,5 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Live News Feeds v3
+@@ -38,11 +38,36 @@ const LIVE_FEEDS = [
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+ ];
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
++  const { searchParams } = request.nextUrl;
++
++  // Filters are case-insensitive and accept comma-separated values
++  // e.g. /api/live-news?country=us,gb&category=mainstream
++  const parseFilter = (raw: string | null) =>
++    (raw ?? '')
++      .split(',')
++      .map((v) => v.trim().toLowerCase())
++      .filter(Boolean);
++
++  const countries = parseFilter(searchParams.get('country'));
++  const categories = parseFilter(searchParams.get('category'));
++
++  const feeds = LIVE_FEEDS.filter((feed) => {
++    const matchesCountry =
++      countries.length === 0 || countries.includes(feed.country.toLowerCase());
++    const matchesCategory =
++      categories.length === 0 || categories.includes(feed.category.toLowerCase());
++    return matchesCountry && matchesCategory;
++  });
++
+   return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
++    feeds,
++    total: feeds.length,
+     categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
++    filters: {
++      country: countries.length ? countries : null,
++      category: categories.length ? categories : null,
++    },
+     timestamp: new Date().toISOString(),
+   }, {
+     headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=172800' },

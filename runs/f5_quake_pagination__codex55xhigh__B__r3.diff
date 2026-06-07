@@ -1,0 +1,111 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..2b9222f 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -1,30 +1,40 @@
+ 
+-import { NextResponse } from 'next/server';
++import { NextResponse, type NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+- * No API key required
+- */
+-
+-export async function GET() {
+-  try {
+-    const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+-    const res = await fetch(url, {
+-      signal: AbortSignal.timeout(10000),
++ * No API key required
++ */
++
++const MAX_RESULT_LIMIT = 500;
++
++function parseResultLimit(value: string | null): number | undefined {
++  if (!value || !/^[1-9]\d*$/.test(value)) return undefined;
++
++  return Math.min(Number(value), MAX_RESULT_LIMIT);
++}
++
++export async function GET(request: NextRequest) {
++  try {
++    const limit = parseResultLimit(request.nextUrl.searchParams.get('limit'));
++    const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
++    const res = await fetch(url, {
++      signal: AbortSignal.timeout(10000),
+     });
+ 
+     if (!res.ok) {
+       return NextResponse.json({ earthquakes: [], error: 'USGS unavailable' });
+     }
+-
+-    const data = await res.json();
+-    const features = data.features || [];
+-
+-    const earthquakes = features.map((f: any) => {
+-      const coords = f.geometry?.coordinates || [0, 0, 0];
+-      const props = f.properties || {};
+-      return {
++
++    const data = await res.json();
++    const features = data.features || [];
++    const limitedFeatures = limit === undefined ? features : features.slice(0, limit);
++
++    const earthquakes = limitedFeatures.map((f: any) => {
++      const coords = f.geometry?.coordinates || [0, 0, 0];
++      const props = f.properties || {};
++      return {
+         id: f.id,
+         lat: coords[1],
+         lng: coords[0],
+@@ -40,11 +50,12 @@ export async function GET() {
+       };
+     });
+ 
+-    return NextResponse.json({
+-      earthquakes,
+-      total: earthquakes.length,
+-      timestamp: new Date().toISOString(),
+-    }, {
++    return NextResponse.json({
++      earthquakes,
++      total: earthquakes.length,
++      totalAvailable: features.length,
++      timestamp: new Date().toISOString(),
++    }, {
+       headers: {
+         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+       },
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e52e7a5..7682b6c 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -21,6 +21,8 @@ const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
+ const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
+ const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
+ 
++const EARTHQUAKE_API_URL = '/api/earthquakes?limit=200';
++
+ function useIsMobile() {
+   const [isMobile, setIsMobile] = useState(false);
+   useEffect(() => {
+@@ -286,7 +288,7 @@ export default function Dashboard() {
+   // ── PROGRESSIVE DATA LOADING (request-optimized) ──
+   useEffect(() => {
+     // Priority 1: Core feeds (always needed for panels)
+-    fetchEndpoint('/api/earthquakes');
++    fetchEndpoint(EARTHQUAKE_API_URL);
+     fetchEndpoint('/api/news');
+     const marketTimer = setTimeout(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 800);
+ 
+@@ -300,7 +302,7 @@ export default function Dashboard() {
+ 
+     // Polling — OPTIMIZED intervals to minimize edge requests
+     const intervals = [
+-      setInterval(() => fetchEndpoint('/api/earthquakes'), 900000),  // 15 min (was 5)
++      setInterval(() => fetchEndpoint(EARTHQUAKE_API_URL), 900000),  // 15 min (was 5)
+       setInterval(() => fetchEndpoint('/api/news'), 1800000),        // 30 min (was 10)
+       setInterval(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 900000), // 15 min (was 5)
+     ];

@@ -1,0 +1,193 @@
+diff --git a/generate_api_routes.js b/generate_api_routes.js
+new file mode 100644
+index 0000000..3ca5da7
+--- /dev/null
++++ b/generate_api_routes.js
+@@ -0,0 +1,91 @@
++const fs = require('fs');
++const path = require('path');
++
++/**
++ * Scans src/app/api for route handlers and emits a typed module listing every
++ * real API route path, so /api/health can report reality instead of a
++ * hand-maintained (and perpetually stale) array.
++ *
++ * Runs automatically before every build via the "prebuild" npm script. Safe to
++ * run by hand too:  node generate_api_routes.js
++ *
++ * Paths are resolved from __dirname (this file's location), so the result does
++ * not depend on the current working directory. We emit committed source — not a
++ * runtime filesystem scan — because `output: 'standalone'` does not copy
++ * src/app/** into the deployed bundle, so a runtime scan would see nothing.
++ */
++
++const API_DIR = path.join(__dirname, 'src', 'app', 'api');
++const OUT_FILE = path.join(__dirname, 'src', 'lib', 'api-routes.generated.ts');
++
++const ROUTE_FILE = /^route\.(t|j)sx?$/;
++
++// Walk the app/api tree. A directory maps to a real route iff it directly
++// contains a route handler file. Route groups "(group)" and parallel-route
++// slots "@slot" are transparent to the URL; dynamic segments ("[id]") are kept
++// verbatim. (None exist today, but discovery should not silently drop them.)
++function collect(dir, segments, routes) {
++  let entries;
++  try {
++    entries = fs.readdirSync(dir, { withFileTypes: true });
++  } catch {
++    return;
++  }
++
++  if (entries.some((e) => e.isFile() && ROUTE_FILE.test(e.name))) {
++    routes.push('/api' + (segments.length ? '/' + segments.join('/') : ''));
++  }
++
++  for (const entry of entries) {
++    if (!entry.isDirectory()) continue;
++    const name = entry.name;
++    const transparent =
++      (name.startsWith('(') && name.endsWith(')')) || name.startsWith('@');
++    collect(
++      path.join(dir, name),
++      transparent ? segments : [...segments, name],
++      routes
++    );
++  }
++}
++
++function main() {
++  const routes = [];
++  collect(API_DIR, [], routes);
++  const unique = [...new Set(routes)].sort();
++
++  // Never clobber the committed file with an empty list (e.g. if the tree moved
++  // and the scan found nothing) — keep the last known-good list instead.
++  if (unique.length === 0) {
++    console.warn('[generate_api_routes] no routes found; keeping existing file');
++    return;
++  }
++
++  const body = unique.map((r) => `  ${JSON.stringify(r)},`).join('\n');
++  const contents = `/* eslint-disable */
++// AUTO-GENERATED — DO NOT EDIT BY HAND.
++// Source of truth: the route.ts handlers under src/app/api/.
++// Regenerate with \`node generate_api_routes.js\` (runs automatically via the
++// "prebuild" npm script before every \`npm run build\`).
++
++export const API_ROUTES: string[] = [
++${body}
++];
++`;
++
++  fs.writeFileSync(OUT_FILE, contents);
++  console.log(
++    `Generated ${unique.length} API routes -> ${path.relative(__dirname, OUT_FILE)}`
++  );
++}
++
++try {
++  main();
++} catch (err) {
++  // Route discovery must never break the build; fall back to the committed file.
++  console.warn(
++    '[generate_api_routes] skipped:',
++    err && err.message ? err.message : err
++  );
++  process.exit(0);
++}
+diff --git a/package.json b/package.json
+index d64950c..2c12836 100644
+--- a/package.json
++++ b/package.json
+@@ -3,7 +3,9 @@
+   "version": "0.1.0",
+   "private": true,
+   "scripts": {
++    "predev": "node generate_api_routes.js",
+     "dev": "next dev",
++    "prebuild": "node generate_api_routes.js",
+     "build": "next build",
+     "start": "next start",
+     "lint": "eslint"
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..8cb127b 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,4 +1,5 @@
+ import { NextResponse } from 'next/server';
++import { API_ROUTES } from '@/lib/api-routes.generated';
+ 
+ export async function GET() {
+   return NextResponse.json({
+@@ -7,15 +8,6 @@ export async function GET() {
+     version: '1.0.0',
+     uptime: process.uptime ? Math.round(process.uptime()) : 0,
+     timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
++    endpoints: API_ROUTES,
+   });
+ }
+diff --git a/src/lib/api-routes.generated.ts b/src/lib/api-routes.generated.ts
+new file mode 100644
+index 0000000..036b630
+--- /dev/null
++++ b/src/lib/api-routes.generated.ts
+@@ -0,0 +1,49 @@
++/* eslint-disable */
++// AUTO-GENERATED — DO NOT EDIT BY HAND.
++// Source of truth: the route.ts handlers under src/app/api/.
++// Regenerate with `node generate_api_routes.js` (runs automatically via the
++// "prebuild" npm script before every `npm run build`).
++
++export const API_ROUTES: string[] = [
++  "/api/ai/analyze",
++  "/api/ai/briefing",
++  "/api/air-quality",
++  "/api/cctv",
++  "/api/cctv/stream-status",
++  "/api/country-risk",
++  "/api/cyber-threats",
++  "/api/earthquakes",
++  "/api/fires",
++  "/api/flights",
++  "/api/frontlines",
++  "/api/gdelt",
++  "/api/github-webhook",
++  "/api/health",
++  "/api/infrastructure",
++  "/api/live-news",
++  "/api/maritime",
++  "/api/markets",
++  "/api/news",
++  "/api/osint/bgp",
++  "/api/osint/certs",
++  "/api/osint/cve",
++  "/api/osint/dns",
++  "/api/osint/github",
++  "/api/osint/ip",
++  "/api/osint/leaks",
++  "/api/osint/mac",
++  "/api/osint/phone",
++  "/api/osint/sanctions",
++  "/api/osint/shodan",
++  "/api/osint/sweep",
++  "/api/osint/threats",
++  "/api/osint/whois",
++  "/api/region-dossier",
++  "/api/satellites",
++  "/api/scanner",
++  "/api/scm-suppliers",
++  "/api/sentinel",
++  "/api/space-weather",
++  "/api/stats",
++  "/api/weather",
++];

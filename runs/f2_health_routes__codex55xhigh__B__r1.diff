@@ -1,0 +1,116 @@
+diff --git a/src/app/api/health/route.ts b/src/app/api/health/route.ts
+index 606e26f..50778bc 100644
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -1,21 +1,90 @@
+-import { NextResponse } from 'next/server';
+-
+-export async function GET() {
+-  return NextResponse.json({
+-    status: 'operational',
+-    platform: 'OSIRIS',
+-    version: '1.0.0',
+-    uptime: process.uptime ? Math.round(process.uptime()) : 0,
+-    timestamp: new Date().toISOString(),
+-    endpoints: [
+-      '/api/flights',
+-      '/api/satellites',
+-      '/api/earthquakes',
+-      '/api/news',
+-      '/api/gdelt',
+-      '/api/markets',
+-      '/api/frontlines',
+-      '/api/region-dossier',
+-    ],
+-  });
+-}
++import { readdir, readFile } from 'node:fs/promises';
++import path from 'node:path';
++import { NextResponse } from 'next/server';
++
++export const runtime = 'nodejs';
++
++const API_DIR = path.join(process.cwd(), 'src', 'app', 'api');
++const APP_PATHS_MANIFEST = path.join(process.cwd(), '.next', 'server', 'app-paths-manifest.json');
++const ROUTE_FILE_PATTERN = /^route\.(?:ts|tsx|js|jsx|mjs|cjs)$/;
++
++function normalizeAppRoutePath(segments: string[]) {
++  const visibleSegments = segments.filter((segment) => {
++    const isRouteGroup = segment.startsWith('(') && segment.endsWith(')');
++    const isParallelRoute = segment.startsWith('@');
++    return segment && !isRouteGroup && !isParallelRoute;
++  });
++
++  return `/${visibleSegments.join('/')}`;
++}
++
++function endpointFromRouteFile(routeFilePath: string) {
++  const routeDir = path.dirname(routeFilePath);
++  const relativeRouteDir = path.relative(API_DIR, routeDir);
++  const routeSegments = relativeRouteDir ? relativeRouteDir.split(path.sep) : [];
++
++  return normalizeAppRoutePath(['api', ...routeSegments]);
++}
++
++async function discoverSourceApiEndpoints(dir = API_DIR): Promise<string[]> {
++  const entries = await readdir(dir, { withFileTypes: true });
++  const nestedEndpoints = await Promise.all(
++    entries.map(async (entry) => {
++      const entryPath = path.join(dir, entry.name);
++
++      if (entry.isDirectory()) {
++        return discoverSourceApiEndpoints(entryPath);
++      }
++
++      if (entry.isFile() && ROUTE_FILE_PATTERN.test(entry.name)) {
++        return [endpointFromRouteFile(entryPath)];
++      }
++
++      return [];
++    }),
++  );
++
++  return nestedEndpoints.flat();
++}
++
++function endpointFromManifestRoute(routePath: string) {
++  if (!routePath.startsWith('/api') || !routePath.endsWith('/route')) {
++    return null;
++  }
++
++  const routeSegments = routePath.slice(1, -'/route'.length).split('/');
++  return normalizeAppRoutePath(routeSegments);
++}
++
++async function discoverManifestApiEndpoints() {
++  const manifestContents = await readFile(APP_PATHS_MANIFEST, 'utf8');
++  const manifest = JSON.parse(manifestContents) as Record<string, string>;
++
++  return Object.keys(manifest).flatMap((routePath) => {
++    const endpoint = endpointFromManifestRoute(routePath);
++    return endpoint ? [endpoint] : [];
++  });
++}
++
++async function discoverApiEndpoints() {
++  let endpoints: string[] = [];
++
++  try {
++    endpoints = await discoverSourceApiEndpoints();
++  } catch {
++    endpoints = await discoverManifestApiEndpoints();
++  }
++
++  return Array.from(new Set(endpoints)).sort((first, second) => first.localeCompare(second));
++}
++
++export async function GET() {
++  return NextResponse.json({
++    status: 'operational',
++    platform: 'OSIRIS',
++    version: '1.0.0',
++    uptime: Math.round(process.uptime()),
++    timestamp: new Date().toISOString(),
++    endpoints: await discoverApiEndpoints(),
++  });
++}

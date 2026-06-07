@@ -1,0 +1,102 @@
+diff --git a/src/app/api/earthquakes/route.ts b/src/app/api/earthquakes/route.ts
+index 2893398..d75368a 100644
+--- a/src/app/api/earthquakes/route.ts
++++ b/src/app/api/earthquakes/route.ts
+@@ -5,10 +5,31 @@ import { NextResponse } from 'next/server';
+  * OSIRIS — Earthquake Data API
+  * Fetches real-time seismic events from USGS (last 24h, M2.5+)
+  * No API key required
++ *
++ * Query params:
++ *   minMagnitude — optional. Only return quakes with magnitude >= this value,
++ *                  letting the map hide small quakes. Ignored when absent or
++ *                  invalid, in which case every event from the feed is returned.
+  */
+ 
+-export async function GET() {
++/**
++ * Parses the `minMagnitude` query param into a usable threshold.
++ * Returns null when the param is absent or not a valid (finite, non-negative)
++ * number, signalling "no filtering".
++ */
++function parseMinMagnitude(raw: string | null): number | null {
++  if (raw === null || raw.trim() === '') return null;
++  const value = Number(raw);
++  if (!Number.isFinite(value) || value < 0) return null;
++  return value;
++}
++
++export async function GET(request: Request) {
+   try {
++    const minMagnitude = parseMinMagnitude(
++      new URL(request.url).searchParams.get('minMagnitude')
++    );
++
+     const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
+     const res = await fetch(url, {
+       signal: AbortSignal.timeout(10000),
+@@ -21,7 +42,7 @@ export async function GET() {
+     const data = await res.json();
+     const features = data.features || [];
+ 
+-    const earthquakes = features.map((f: any) => {
++    let earthquakes = features.map((f: any) => {
+       const coords = f.geometry?.coordinates || [0, 0, 0];
+       const props = f.properties || {};
+       return {
+@@ -40,9 +61,20 @@ export async function GET() {
+       };
+     });
+ 
++    // Server-side magnitude filter so the map can hide small quakes.
++    // Events without a numeric magnitude can't be confirmed >= the threshold,
++    // so they are excluded once a filter is active.
++    if (minMagnitude !== null) {
++      earthquakes = earthquakes.filter(
++        (eq: { magnitude: unknown }) =>
++          typeof eq.magnitude === 'number' && eq.magnitude >= minMagnitude
++      );
++    }
++
+     return NextResponse.json({
+       earthquakes,
+       total: earthquakes.length,
++      minMagnitude,
+       timestamp: new Date().toISOString(),
+     }, {
+       headers: {
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index e52e7a5..fc63849 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -21,6 +21,12 @@ const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
+ const CameraViewer = dynamic(() => import('@/components/CameraViewer'));
+ const OsintPanel = dynamic(() => import('@/components/OsintPanel'));
+ 
++// Minimum quake magnitude rendered on the map. The /api/earthquakes endpoint
++// filters server-side, so raise this to hide small quakes. Defaults to the
++// USGS feed floor (M2.5) so the map keeps showing every reported event.
++const MIN_EARTHQUAKE_MAGNITUDE = 2.5;
++const EARTHQUAKES_ENDPOINT = `/api/earthquakes?minMagnitude=${MIN_EARTHQUAKE_MAGNITUDE}`;
++
+ function useIsMobile() {
+   const [isMobile, setIsMobile] = useState(false);
+   useEffect(() => {
+@@ -286,7 +292,7 @@ export default function Dashboard() {
+   // ── PROGRESSIVE DATA LOADING (request-optimized) ──
+   useEffect(() => {
+     // Priority 1: Core feeds (always needed for panels)
+-    fetchEndpoint('/api/earthquakes');
++    fetchEndpoint(EARTHQUAKES_ENDPOINT);
+     fetchEndpoint('/api/news');
+     const marketTimer = setTimeout(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 800);
+ 
+@@ -300,7 +306,7 @@ export default function Dashboard() {
+ 
+     // Polling — OPTIMIZED intervals to minimize edge requests
+     const intervals = [
+-      setInterval(() => fetchEndpoint('/api/earthquakes'), 900000),  // 15 min (was 5)
++      setInterval(() => fetchEndpoint(EARTHQUAKES_ENDPOINT), 900000),  // 15 min (was 5)
+       setInterval(() => fetchEndpoint('/api/news'), 1800000),        // 30 min (was 10)
+       setInterval(() => fetchEndpoint('/api/markets', d => ({ markets: d })), 900000), // 15 min (was 5)
+     ];

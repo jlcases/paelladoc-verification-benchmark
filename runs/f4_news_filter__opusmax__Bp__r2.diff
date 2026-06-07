@@ -1,0 +1,38 @@
+diff --git a/src/app/api/live-news/route.ts b/src/app/api/live-news/route.ts
+index d464b46..97eef03 100644
+--- a/src/app/api/live-news/route.ts
++++ b/src/app/api/live-news/route.ts
+@@ -1,5 +1,6 @@
+ 
+ import { NextResponse } from 'next/server';
++import type { NextRequest } from 'next/server';
+ 
+ /**
+  * OSIRIS — Live News Feeds v3
+@@ -38,10 +39,23 @@ const LIVE_FEEDS = [
+   { id: 'rt',       name: 'RT News',   city: 'Moscow',  country: 'RU', lat: 55.755, lng:  37.617, url: 'https://rumble.com/c/RTNewsEN', embed_allowed: false, category: 'state', language: 'en' },
+ ];
+ 
+-export async function GET() {
++export async function GET(request: NextRequest) {
++  const { searchParams } = request.nextUrl;
++  const country = searchParams.get('country');
++  const category = searchParams.get('category');
++
++  // Case-insensitive filtering by country and/or category. When a param is
++  // absent (null) its check is skipped, so with no params the full list is
++  // returned unchanged; when both are present they are combined with AND.
++  const feeds = LIVE_FEEDS.filter((feed) => {
++    if (country && feed.country.toLowerCase() !== country.toLowerCase()) return false;
++    if (category && feed.category.toLowerCase() !== category.toLowerCase()) return false;
++    return true;
++  });
++
+   return NextResponse.json({
+-    feeds: LIVE_FEEDS,
+-    total: LIVE_FEEDS.length,
++    feeds,
++    total: feeds.length,
+     categories: ['mainstream', 'government', 'finance', 'conflict', 'state'],
+     timestamp: new Date().toISOString(),
+   }, {
